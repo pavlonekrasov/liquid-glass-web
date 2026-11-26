@@ -1,7 +1,7 @@
 ---
 name: liquid-glass-web
 description: This skill should be used when the user asks to "add liquid glass", "build Apple iOS 26/27 glass UI", "use liquid-glass-web", "create a GlassTabBar", "fuse glass surfaces with GlassContainer", "add a refracting glass switch or slider", or mentions GlassStage, GlassSurface, GlassOrb, GlassButton, Snell refraction, Cauchy dispersion, or progressive Liquid Glass fallbacks on the web.
-version: 0.1.0
+version: 0.1.1
 ---
 
 # liquid-glass-web
