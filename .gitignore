@@ -8,3 +8,11 @@ coverage/
 .env.local
 .DS_Store
 Thumbs.db
+
+# Landing page source stays private (the Lab and shared files are public)
+apps/web/src/app/page.tsx
+apps/web/src/components/ShowcaseExperience.tsx
+apps/web/src/components/ShowcaseExperience.css
+apps/web/src/components/CodeEditor.tsx
+apps/web/src/components/CodeEditor.css
+apps/web/public/textures/paper-scan.jpg
