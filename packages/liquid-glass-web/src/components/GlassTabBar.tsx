@@ -228,8 +228,11 @@ export function GlassTabBar({
     };
   }, [config.foreground]);
 
-  // Live scroll-adaptive WCAG AA legibility sampler (skipped during active pointer scrubs)
+  const { reportLegibility, layoutVersion: stageLayoutVersion, requestChromePaint } = stage;
+
+  // Live scroll-adaptive WCAG AA legibility sampler (skipped during active pointer scrubs & spring flights)
   const runLegibilitySample = useCallback(() => {
+    if (flyingRef.current) return;
     const barEl = pillRef.current;
     if (!barEl) return;
     const { polaritySamples, contrastSamples } = sampleBackdropBehind(barEl, wrapRef.current);
@@ -273,13 +276,13 @@ export function GlassTabBar({
         ? prev
         : nextRes,
     );
-    stage.reportLegibility(nextRes);
+    reportLegibility(nextRes);
   }, [
     config.adaptiveContrast,
     config.foreground,
     config.tintAlpha,
     config.tintColor,
-    stage,
+    reportLegibility,
   ]);
 
   useEffect(() => {
@@ -305,7 +308,7 @@ export function GlassTabBar({
       window.removeEventListener("resize", schedule);
       window.clearInterval(interval);
     };
-  }, [runLegibilitySample, size, useHic, scrubbing, stage.layoutVersion]);
+  }, [runLegibilitySample, size, useHic, scrubbing, stageLayoutVersion]);
 
   // Analytical Tier 0 Float32 diagnostics (0 ms PNG bakes)
   const hicDiagnostics = useMemo<{
@@ -400,6 +403,7 @@ export function GlassTabBar({
   });
 
   const anims = useRef<AnimationPlaybackControls[]>([]);
+  const flyingRef = useRef(false);
   const barGlowAnim = useRef<AnimationPlaybackControls | null>(null);
   const releaseVelocityRef = useRef(0);
   const wasLiftedRef = useRef(false);
@@ -580,6 +584,7 @@ export function GlassTabBar({
   const stopAnims = useCallback(() => {
     for (const c of anims.current) c.stop();
     anims.current = [];
+    flyingRef.current = false;
   }, []);
 
   const animateBarTouchGlow = useCallback(
@@ -685,6 +690,7 @@ export function GlassTabBar({
       const liftSpring = lifted ? GLASS_SPRINGS.loupeLift : GLASS_SPRINGS.loupeSettle;
 
       if (tapFlightPulse) {
+        flyingRef.current = true;
         const peakLift = Math.max(
           startLift,
           travelDist > 130 ? TAP_LOUPE_PEAK_FAR : TAP_LOUPE_PEAK_NEAR,
@@ -705,6 +711,7 @@ export function GlassTabBar({
               paintIndicators();
             },
             onComplete: () => {
+              flyingRef.current = false;
               live.current.cx = targetCx;
               live.current.lift = 0;
               live.current.stretchX = 1;
@@ -995,10 +1002,10 @@ export function GlassTabBar({
   };
 
   useEffect(() => {
-    if (stage.hicBridge) {
-      stage.requestChromePaint();
+    if (useHic) {
+      requestChromePaint();
     }
-  }, [stage, activeIdx, previewTab, size]);
+  }, [useHic, requestChromePaint, activeIdx, previewTab, size]);
 
   const shownTab = previewTab ?? activeIdx;
   const scrimStyle: CSSProperties =
