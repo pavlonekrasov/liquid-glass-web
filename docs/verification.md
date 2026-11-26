@@ -66,10 +66,43 @@ All 9 generated 2× screenshots (`dist/verify-visuals/00-showcase-landing-2x.png
 
 ---
 
-## 3. Unverified Platforms & Known Limits
+## 3. Headless Installed-Firefox (Gecko) Multi-DPR Tier 2 Verification
 
-The following real-hardware / cross-engine environments were **not** directly tested on this Windows verification host and remain to be verified on target hardware before publishing `1.0.0`:
-- **Native macOS / iOS Safari (WebKit):** Verified structurally via Tier 2 Aave content-path (`filter: url(#…-cN)`) + CSS `mask-mode: luminance` unit and Chrome-simulated checks, but not rendered on live Apple WebKit hardware.
-- **Native Firefox (Gecko):** Takes Tier 2 Aave content-path + CSS `mask-mode: luminance`; not executed on live Firefox on this host.
-- **Physical touch hardware & real VoiceOver / TalkBack:** Pointer Events (`setPointerCapture`), `≥ 44×44 px` touch targets, ARIA APG roles (`tablist`, `switch`, `slider`), and keyboard navigation were verified in headless Chromium, not on physical iOS/Android touchscreens or native screen readers.
+Command: `pnpm verify:firefox` (`node scripts/verify-firefox.mjs` via native W3C WebDriver BiDi) against `next start` (`127.0.0.1:3102`).
+Browser: Installed Mozilla Firefox **`161.0`** (`Gecko/20100101 Firefox/161.0`, headless, `1×`, `1.25×`, `1.5×`, and `2×` DPR).
+
+| Gate / Metric | Threshold | Measured Result | Status |
+| --- | --- | --- | --- |
+| Console & page errors (all routes & DPRs) | `0` | **`0`** | Pass |
+| Automatic Tier 2 negotiation (`engine="auto"`) | `svg-content`, no `data-lg-refract` | `svg-content`, `hasUserAgentData: false`, `hasDataLgRefract: false` | Pass |
+| All 5 components mounted on Showcase (`/`) | TabBar, Orb, Switch, Slider, Button | All 5 rendered with `mask-mode: luminance` + `border-image-slice: 0 fill` | Pass |
+| Material Lab (`/lab`) DialKit + Attribution + JSX Drawer | DialKit + Josh Puckett + `<GlassStage` | Panel mounted, attribution visible, DialKit action opens JSX drawer | Pass |
+| Tier 2 Aave 5-band continuous spectral lens (`ff-02b-tier2-loupe-closeup-2x.png`) | `5` bands + ghost bar + cutout + pixel displacement | **`5` `feDisplacementMap` bands** (`-c1`), `mask-mode: luminance` cutout on `.lgw-tabbar__track`, **`2,382` displaced px**, **`1,522` chromatic dispersion px** (`maxChDiff: 240`) | Pass |
+| Daylight Feed WCAG AA & Bar/Orb tint parity (bright & dark regions) | `>= 4.5:1`, identical `::before` tint | Bright feed: `fg: "dark"`, **`18.09:1`**, `bar === orb === rgb(250, 251, 254)`; Dark card region: `fg: "light"`, **`5.0:1`**, `bar === orb === rgb(12, 16, 26)` | Pass |
+| Interactive controls & steady-state 5-band tab switch | Switch/Orb/Tab toggle + `maxFrameMs < 100 ms` | All toggled; warm 5-band flight **`maxFrameMs: 29.2 ms`**, **`avgFrameMs: 10.0 ms`**, **`15` visible loupe frames** (`75` frames; cold first click on fresh headless SWGL profile: `166.8 ms` one-time shader compile) | Pass |
+
+### Firefox Fractional DPR Fresnel Top-Rim Luminance Decay (`s = 0..5 CSS px`)
+
+Verified native `mask-mode: luminance` + `border-image-slice: 0 fill` rendering in Gecko 161.0 — strictly monotonic inward decay across all 4 DPRs:
+
+| DPR | Row 0 | Row 1 | Row 2 | Row 3 | Row 4 | Row 5 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `1×` | `140.8` | `54.4` | `25.5` | `11.5` | `4.3` | `2.3` |
+| `1.25×` | `144.8` | `61.6` | `26.0` | `14.4` | `7.2` | `2.3` |
+| `1.5×` | `155.3` | `84.6` | `30.4` | `18.5` | `6.3` | `3.3` |
+| `2×` | `147.8` | `57.5` | `27.4` | `12.7` | `4.9` | `2.2` |
+
+### Firefox Visual Inspection & Fixes Caught
+All 6 generated 2× Gecko screenshots (`dist/verify-firefox/ff-00-showcase-landing-2x.png` through `ff-04-c2squircle-grid-2x.png` including `ff-02b-tier2-loupe-closeup-2x.png`) were visually inspected:
+- Caught and fixed showcase hero vertical rhythm on ~890 px viewport heights so the floating bottom glass dock sits cleanly below the Variant/Profile/Meniscus control bar with zero overlap on both Chrome and Firefox.
+- Avoided per-frame reassignment of the `data:image/svg+xml` cutout `maskImage` in `GlassTabBar` (updating only `maskSize` / `maskPosition` during active loupe flights) and merged width interpolation into the single horizontal spring tick to eliminate redundant style writes per frame.
+- Visually confirmed crisp 5-band chromatic prism dispersion on refracted `Home` / `Search` glyphs inside the lifted Tier 2 loupe, zero glyph doubling at the luminance cutout seam, and exact Bar/Orb tint parity in both light and dark scroll regions.
+
+---
+
+## 4. Remaining Unverified Platforms & Known Limits
+
+The following real-hardware / cross-engine environments were **not** directly tested on this Windows verification host and remain to be spot-checked on target hardware before publishing `1.0.0`:
+- **Native macOS / iOS Safari (WebKit):** Shares the verified Tier 2 Aave content-path (`filter: url(#…-cN)`) + CSS `mask-mode: luminance` code path validated in Firefox 161.0 and Chrome 158, but not rendered on live Apple WebKit hardware.
+- **Physical touch hardware & real VoiceOver / TalkBack:** Pointer Events (`setPointerCapture`), `≥ 44×44 px` touch targets, ARIA APG roles (`tablist`, `switch`, `slider`), and keyboard navigation were verified in headless Chromium and Firefox, not on physical iOS/Android touchscreens or native screen readers.
 - **Tier 0 browser requirement:** Native HTML-in-Canvas WebGL2 (`<canvas content="drawable" layoutsubtree>`) requires Chrome 157+; earlier Chromium versions automatically negotiate Tier 1 (`svg-backdrop`), and Safari/Firefox automatically negotiate Tier 2 (`svg-content`).

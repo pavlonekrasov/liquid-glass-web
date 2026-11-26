@@ -493,16 +493,20 @@ export function GlassTabBar({
         const mh = CUTOUT_H * sy;
         const mx = cx - trackLeft - mw / 2;
         const my = h / 2 - mh / 2;
-        track.style.maskImage = cutoutMaskUrl;
-        track.style.webkitMaskImage = cutoutMaskUrl;
-        track.style.maskMode = "luminance";
-        track.style.maskRepeat = "no-repeat";
-        track.style.webkitMaskRepeat = "no-repeat";
+        if (track.dataset.lgwCutout !== cutoutMaskUrl) {
+          track.dataset.lgwCutout = cutoutMaskUrl;
+          track.style.maskImage = cutoutMaskUrl;
+          track.style.webkitMaskImage = cutoutMaskUrl;
+          track.style.maskMode = "luminance";
+          track.style.maskRepeat = "no-repeat";
+          track.style.webkitMaskRepeat = "no-repeat";
+        }
         track.style.maskSize = `${mw.toFixed(1)}px ${mh.toFixed(1)}px`;
         track.style.webkitMaskSize = `${mw.toFixed(1)}px ${mh.toFixed(1)}px`;
         track.style.maskPosition = `${mx.toFixed(1)}px ${my.toFixed(1)}px`;
         track.style.webkitMaskPosition = `${mx.toFixed(1)}px ${my.toFixed(1)}px`;
-      } else if (track.style.maskImage) {
+      } else if (track.dataset.lgwCutout) {
+        delete track.dataset.lgwCutout;
         track.style.maskImage = "";
         track.style.webkitMaskImage = "";
       }
@@ -691,6 +695,7 @@ export function GlassTabBar({
 
       if (tapFlightPulse) {
         flyingRef.current = true;
+        const startW = live.current.w;
         const peakLift = Math.max(
           startLift,
           travelDist > 130 ? TAP_LOUPE_PEAK_FAR : TAP_LOUPE_PEAK_NEAR,
@@ -703,6 +708,7 @@ export function GlassTabBar({
               const p = clamp01(1 - Math.abs(targetCx - v) / Math.max(1, travelDist));
               const bell = tapFlightBell(p, 0.85);
               const carry = startLift * (1 - p);
+              live.current.w = startW + (targetW - startW) * p;
               live.current.lift = Math.max(carry, peakLift * bell);
               live.current.stretchX = 1 + pillDeform.maxVelocityStretch * bell;
               live.current.stretchY =
@@ -713,16 +719,10 @@ export function GlassTabBar({
             onComplete: () => {
               flyingRef.current = false;
               live.current.cx = targetCx;
+              live.current.w = targetW;
               live.current.lift = 0;
               live.current.stretchX = 1;
               live.current.stretchY = 1;
-              paintIndicators();
-            },
-          }),
-          animate(live.current.w, targetW, {
-            ...GLASS_SPRINGS.snappy,
-            onUpdate: (v) => {
-              live.current.w = v;
               paintIndicators();
             },
           }),

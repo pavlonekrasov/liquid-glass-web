@@ -13,7 +13,8 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint . --max-warnings 0",
     "publint": "pnpm --filter liquid-glass-web publint",
-    "verify:visuals": "node scripts/verify-visuals.mjs"
+    "verify:visuals": "node scripts/verify-visuals.mjs",
+    "verify:firefox": "node scripts/verify-firefox.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
