@@ -1,14 +1,3 @@
-/* ===========================================================================
-   Tier 0 HTML-in-Canvas Float32 GLSL Optical Engine (Chrome 157+)
-   Pure math + GLSL string generators, zero DOM (safe to unit test in Node).
-     1. Generic GlassNode[8] base pass + GlassLoupe[4] lifted pass.
-     2. GlassEffectContainer polynomial smooth-min sminPoly(a, b, k) with
-        saddle-point gradient damping (zero center pinch dot).
-     3. Whisper-subtle rim-weighted .interactive() touch illumination bloom.
-     4. Exact h(0)=0 Snell refraction + 11-band Cauchy n(lambda) summing to (1,1,1).
-     5. 4x supersampled dual-bounce Schlick Fresnel + Beer–Lambert + tucked shadow.
-   =========================================================================== */
-
 export const MAX_HIC_SURFACES = 8;
 export const MAX_HIC_LOUPES = 4;
 
@@ -23,11 +12,7 @@ export interface HicSpectralBand {
 /** Helium d-line reference wavelength (587.6 nm in micrometers). */
 export const CAUCHY_LAMBDA_D_UM = 0.5876;
 
-/**
- * 11-band continuous visible spectrum (656 nm C-line -> 435 nm g-line).
- * Channel weights sum to exact (1.00, 1.00, 1.00) so neutral flat regions
- * reproduce #ffffff and #808080 with 0/255 drift.
- */
+/** 11-band spectrum (656 nm to 435 nm). Channel weights sum to 1, so neutral areas stay neutral. */
 export const HIC_SPECTRAL_BANDS: readonly HicSpectralBand[] = [
   { nm: 656, um: 0.6563, r: 0.19, g: 0.0, b: 0.0 },
   { nm: 632, um: 0.632, r: 0.27, g: 0.03, b: 0.0 },

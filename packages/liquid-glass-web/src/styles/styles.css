@@ -1,15 +1,6 @@
-/* ===========================================================================
-   liquid-glass-web — Scoped Apple iOS 26/27 Liquid Glass Stylesheet
-   Invariants enforced:
-     1. -webkit-backdrop-filter ALWAYS precedes backdrop-filter.
-     2. border-radius: inherit on ::before and ::after.
-     3. Never animate background-color on ::before with -webkit-mask-box-image
-        (animates opacity on dedicated .lgw-scrim only).
-     4. Adaptive [data-fg] tint applies to EVERY glass surface (bars, orbs,
-        buttons, cards) for daylight/dark polarity parity.
-     5. Full accessibility parity across prefers-reduced-motion,
-        prefers-reduced-transparency, prefers-contrast: more, and forced-colors.
-   =========================================================================== */
+/* Rules kept here (checked by tests/css-contract): -webkit-backdrop-filter comes
+   before backdrop-filter; ::before and ::after inherit border-radius; background-color
+   is never animated on ::before (fade .lgw-scrim's opacity instead). */
 
 .lgw-stage {
   position: relative;
@@ -35,7 +26,7 @@
   min-height: 100%;
 }
 
-/* ---- Tier 0 HTML-in-Canvas Full-Viewport WebGL2 Host ---------------------- */
+/* Tier 0 host */
 
 .lgw-hic-canvas {
   position: fixed;
@@ -63,6 +54,23 @@
   background-color: transparent;
 }
 
+.lgw-stage:not(.lgw-stage--fullscreen) .lgw-scene {
+  height: 100%;
+}
+
+.lgw-stage:not(.lgw-stage--fullscreen) .lgw-hic-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.lgw-stage:not(.lgw-stage--fullscreen) .lgw-hic-scene,
+.lgw-stage:not(.lgw-stage--fullscreen) .lgw-hic-chrome {
+  width: 100%;
+  height: 100%;
+}
+
 .lgw-chrome {
   pointer-events: none;
 }
@@ -80,15 +88,83 @@
   pointer-events: auto;
 }
 
-/* ---- GlassContainer (GlassEffectContainer smin Group) --------------------- */
+/* GlassContainer */
 
 .lgw-container {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 14px;
+  max-width: 100%;
 }
 
-/* ---- Core Liquid Glass Material Surface (Tier 1 & Tier 2) ----------------- */
+.lgw-container > :not(.lgw-container__union):not(.lgw-svg-host) {
+  position: relative;
+  z-index: 1;
+}
+
+/* Fused glass layer behind the children (Tier 1/2) */
+.lgw-container__union {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.lgw-container__union-shadow {
+  position: absolute;
+  inset: -28px;
+  width: calc(100% + 56px);
+  height: calc(100% + 56px);
+  z-index: 0;
+  pointer-events: none;
+  display: block;
+}
+
+.lgw-container__union-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-backdrop-filter: var(--lgw-union-backdrop, blur(2px) saturate(1.25));
+  backdrop-filter: var(--lgw-union-backdrop, blur(2px) saturate(1.25));
+}
+
+.lgw-container__union-optics {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  display: block;
+}
+
+/* While fused, children hide their own glass; the loupe and active pill stay */
+.lgw-container[data-lgw-union="true"]
+  .lgw-glass-surface:not(.lgw-loupe):not(.lgw-switch__loupe):not(.lgw-slider__loupe) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-color: transparent;
+  box-shadow: none;
+  background-color: transparent;
+}
+
+.lgw-container[data-lgw-union="true"]
+  .lgw-glass-surface:not(.lgw-loupe):not(.lgw-switch__loupe):not(.lgw-slider__loupe)::before,
+.lgw-container[data-lgw-union="true"]
+  .lgw-glass-surface:not(.lgw-loupe):not(.lgw-switch__loupe):not(.lgw-slider__loupe)::after,
+.lgw-container[data-lgw-union="true"]
+  .lgw-glass-surface:not(.lgw-loupe):not(.lgw-switch__loupe):not(.lgw-slider__loupe)
+  > .lgw-scrim {
+  visibility: hidden;
+}
+
+/* Glass surface (Tier 1/2) */
 
 .lgw-glass-surface {
   position: relative;
@@ -103,7 +179,7 @@
   box-shadow: var(--lgw-shadow, 0 1px 3px rgb(15 20 32 / 0.07), 0 8px 22px -6px rgb(15 20 32 / 0.13));
 }
 
-/* Beer–Lambert volumetric body tint (NEVER animate background-color here) */
+/* Body tint. Don't animate background-color here. */
 .lgw-glass-surface[data-lgw-lit]::before {
   content: "";
   position: absolute;
@@ -112,13 +188,16 @@
   z-index: -1;
   pointer-events: none;
   background-color: var(--lgw-body-color, rgb(14 18 28));
+  -webkit-mask-image: var(--lgw-body-mask);
   mask-image: var(--lgw-body-mask);
   mask-mode: luminance;
+  -webkit-mask-size: 100% 100%;
   mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
 }
 
-/* Adaptive [data-fg] Beer–Lambert tint overrides apply to EVERY glass surface (bars, orbs, buttons) */
+/* Polarity tints apply to every glass surface */
 [data-adaptive-a11y="true"][data-fg="light"] .lgw-glass-surface:not(.lgw-loupe):not(.lgw-switch__loupe):not(.lgw-slider__loupe)[data-lgw-lit]::before {
   background-color: rgb(12 16 26);
 }
@@ -128,11 +207,12 @@
 }
 
 :root[data-lg-refract] .lgw-glass-surface[data-lgw-lit]::before {
+  -webkit-mask-image: none;
   mask-image: none;
   -webkit-mask-box-image: var(--lgw-body-mask) 0 fill;
 }
 
-/* Dual-bounce 3D bezel-normal Schlick Fresnel specular rim highlight */
+/* Fresnel rim highlight */
 .lgw-glass-surface[data-lgw-lit]::after {
   content: "";
   position: absolute;
@@ -146,18 +226,22 @@
   border-image-source: var(--lgw-light-color);
   border-image-slice: 0 fill;
   border-image-repeat: stretch;
+  -webkit-mask-image: var(--lgw-light-mask);
   mask-image: var(--lgw-light-mask);
   mask-mode: luminance;
+  -webkit-mask-size: 100% 100%;
   mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
 }
 
 :root[data-lg-refract] .lgw-glass-surface[data-lgw-lit]::after {
+  -webkit-mask-image: none;
   mask-image: none;
   -webkit-mask-box-image: var(--lgw-light-mask) 0 fill;
 }
 
-/* Seamless full-capsule WCAG AA scrim (animates opacity ONLY) */
+/* Legibility scrim (animates opacity only) */
 .lgw-scrim {
   position: absolute;
   inset: 0;
@@ -168,7 +252,7 @@
   transition: opacity 220ms ease;
 }
 
-/* ---- Tier 0 Transparency Overrides (GPU paints glass, live HTML owns glyphs/a11y) --- */
+/* Tier 0: the GPU paints the glass, HTML keeps the text */
 
 [data-hic-webgl="true"] .lgw-glass-surface {
   -webkit-backdrop-filter: none;
@@ -199,17 +283,21 @@
   border-radius: 999px;
 }
 
-/* ---- GlassTabBar ---------------------------------------------------------- */
+/* GlassTabBar */
 
 .lgw-tabbar-wrap {
   position: relative;
   display: inline-flex;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
   user-select: none;
   -webkit-user-select: none;
 }
 
 .lgw-tabbar {
+  min-width: 0;
+  max-width: 100%;
   padding: 5px;
 }
 
@@ -219,6 +307,7 @@
   display: flex;
   align-items: center;
   gap: 2px;
+  min-width: 0;
   touch-action: none;
 }
 
@@ -239,8 +328,11 @@
   transition: color 150ms ease;
 }
 
+/* 84px tabs when there is room; on a narrow screen they give way down to the label. */
 .lgw-tabbar--compact .lgw-tab {
-  min-width: 84px;
+  flex: 0 1 auto;
+  width: 84px;
+  min-width: min-content;
   min-height: 50px;
   padding: 4px 8px;
 }
@@ -283,7 +375,7 @@
   line-height: 1;
 }
 
-/* Foreground polarity (WCAG AA ink independent of dispersion & Fresnel) */
+/* Text color by polarity */
 [data-fg="dark"] .lgw-tab,
 [data-fg="dark"] .lgw-orb,
 [data-fg="dark"] .lgw-button {
@@ -328,7 +420,7 @@
   outline-offset: 2px;
 }
 
-/* Concentric borderless resting selection pill */
+/* Resting selection pill */
 .lgw-tabbar__thumb {
   position: absolute;
   top: 0;
@@ -358,7 +450,7 @@
     0 4px 12px -4px rgb(0 0 0 / 0.3);
 }
 
-/* Compact 96x66 lifted refracting loupe hugging the 60px bar (3px vertical lip) */
+/* 96x66 lifted loupe over the 60px bar */
 .lgw-loupe {
   position: absolute;
   left: 0;
@@ -391,7 +483,7 @@
   margin-top: -29px;
 }
 
-/* Tier 2 Aave cross-browser content-path lens */
+/* Tier 2 loupe */
 .lgw-loupe__content-clip {
   position: absolute;
   inset: 0;
@@ -413,9 +505,10 @@
   will-change: transform;
 }
 
-/* ---- GlassOrb (Circular Action Button with smin Liquid Fusion) ------------ */
+/* GlassOrb */
 
 .lgw-orb {
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -442,7 +535,116 @@
   height: 60px;
 }
 
-/* ---- GlassButton (Capsule CTA Button, >= 44px Touch Target) --------------- */
+/* GlassScrollEdge */
+
+.lgw-scroll-edge {
+  position: fixed;
+  inset-inline: 0;
+  z-index: 45;
+  pointer-events: none;
+  opacity: var(--lgw-edge-opacity, 1);
+  transition: opacity 220ms cubic-bezier(0.23, 1, 0.32, 1);
+  contain: layout style paint;
+}
+
+.lgw-scroll-edge--bottom {
+  bottom: 0;
+}
+
+.lgw-scroll-edge--top {
+  top: 0;
+}
+
+.lgw-scroll-edge__band,
+.lgw-scroll-edge__tint {
+  position: absolute;
+  inset-inline: 0;
+  pointer-events: none;
+}
+
+.lgw-scroll-edge--bottom .lgw-scroll-edge__band,
+.lgw-scroll-edge--bottom .lgw-scroll-edge__tint {
+  bottom: 0;
+}
+
+.lgw-scroll-edge--top .lgw-scroll-edge__band,
+.lgw-scroll-edge--top .lgw-scroll-edge__tint {
+  top: 0;
+}
+
+.lgw-scroll-edge__band--far {
+  height: 100%;
+  -webkit-backdrop-filter: blur(1.5px) saturate(1.06);
+  backdrop-filter: blur(1.5px) saturate(1.06);
+}
+
+.lgw-scroll-edge__band--mid {
+  height: 74%;
+  -webkit-backdrop-filter: blur(4px) saturate(1.12);
+  backdrop-filter: blur(4px) saturate(1.12);
+}
+
+.lgw-scroll-edge__band--near {
+  height: 48%;
+  -webkit-backdrop-filter: blur(9px) saturate(1.18);
+  backdrop-filter: blur(9px) saturate(1.18);
+}
+
+.lgw-scroll-edge--bottom .lgw-scroll-edge__band--far {
+  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 42%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 0%, #000 42%, transparent 100%);
+}
+
+.lgw-scroll-edge--bottom .lgw-scroll-edge__band--mid {
+  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 34%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 0%, #000 34%, transparent 100%);
+}
+
+.lgw-scroll-edge--bottom .lgw-scroll-edge__band--near {
+  -webkit-mask-image: linear-gradient(to top, #000 0%, #000 28%, transparent 100%);
+  mask-image: linear-gradient(to top, #000 0%, #000 28%, transparent 100%);
+}
+
+.lgw-scroll-edge--top .lgw-scroll-edge__band--far {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 42%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 42%, transparent 100%);
+}
+
+.lgw-scroll-edge--top .lgw-scroll-edge__band--mid {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 34%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 34%, transparent 100%);
+}
+
+.lgw-scroll-edge--top .lgw-scroll-edge__band--near {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 28%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 28%, transparent 100%);
+}
+
+.lgw-scroll-edge__tint {
+  height: 100%;
+}
+
+.lgw-scroll-edge--bottom .lgw-scroll-edge__tint {
+  background: linear-gradient(
+    to top,
+    color-mix(in oklch, var(--lgw-edge-tint, #faf8f4) 92%, transparent) 0%,
+    color-mix(in oklch, var(--lgw-edge-tint, #faf8f4) 62%, transparent) 44%,
+    color-mix(in oklch, var(--lgw-edge-tint, #faf8f4) 18%, transparent) 78%,
+    transparent 100%
+  );
+}
+
+.lgw-scroll-edge--top .lgw-scroll-edge__tint {
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklch, var(--lgw-edge-tint, #faf8f4) 92%, transparent) 0%,
+    color-mix(in oklch, var(--lgw-edge-tint, #faf8f4) 62%, transparent) 44%,
+    color-mix(in oklch, var(--lgw-edge-tint, #faf8f4) 18%, transparent) 78%,
+    transparent 100%
+  );
+}
+
+/* GlassButton */
 
 .lgw-button {
   display: inline-flex;
@@ -477,7 +679,7 @@
   font-size: 0.9375rem;
 }
 
-/* ---- GlassSwitch (iOS 26/27 UISwitch, >= 44px Touch Target) --------------- */
+/* GlassSwitch */
 
 .lgw-switch {
   position: relative;
@@ -622,7 +824,7 @@
   will-change: transform;
 }
 
-/* ---- GlassSlider (iOS 26/27 UISlider, >= 44px Touch Target) --------------- */
+/* GlassSlider */
 
 .lgw-slider {
   position: relative;
@@ -733,12 +935,16 @@
   will-change: transform;
 }
 
-/* ---- Tier 3 Accessibility Fallbacks (All 4 Media Queries) ----------------- */
+/* Tier 3 fallbacks */
 
 @media (prefers-reduced-motion: reduce) {
   .lgw-loupe,
   .lgw-tabbar__thumb {
     transition: opacity 100ms linear;
+  }
+
+  .lgw-scroll-edge {
+    transition: none;
   }
 
   .lgw-switch__loupe,
@@ -776,9 +982,27 @@
   .lgw-glass-surface[data-lgw-lit]::before,
   .lgw-glass-surface[data-lgw-lit]::after,
   .lgw-loupe,
+  .lgw-container__union,
   .lgw-switch__loupe,
   .lgw-slider__loupe {
     display: none;
+  }
+
+  .lgw-container[data-lgw-union="true"] .lgw-glass-surface {
+    background-color: var(--lgw-body-color, rgb(20 24 34));
+  }
+
+  [data-fg="dark"] .lgw-container[data-lgw-union="true"] .lgw-glass-surface {
+    background-color: rgb(248 249 252);
+  }
+
+  [data-fg="light"] .lgw-container[data-lgw-union="true"] .lgw-glass-surface {
+    background-color: rgb(18 22 32);
+  }
+
+  .lgw-scroll-edge__band {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 
   .lgw-switch__track,
@@ -812,8 +1036,18 @@
   }
 
   .lgw-switch__loupe,
-  .lgw-slider__loupe {
+  .lgw-slider__loupe,
+  .lgw-container__union {
     display: none;
+  }
+
+  .lgw-container[data-lgw-union="true"] .lgw-glass-surface {
+    border-color: currentColor;
+  }
+
+  .lgw-scroll-edge__band {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
 
   .lgw-switch__track,
@@ -848,9 +1082,16 @@
   .lgw-glass-surface[data-lgw-lit]::after,
   .lgw-scrim,
   .lgw-loupe,
+  .lgw-container__union,
   .lgw-switch__loupe,
-  .lgw-slider__loupe {
+  .lgw-slider__loupe,
+  .lgw-scroll-edge {
     display: none;
+  }
+
+  .lgw-container[data-lgw-union="true"] .lgw-glass-surface {
+    border-color: CanvasText;
+    background-color: Canvas;
   }
 
   .lgw-switch__track,

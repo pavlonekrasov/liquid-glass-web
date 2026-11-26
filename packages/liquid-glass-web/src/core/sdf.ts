@@ -1,8 +1,3 @@
-/* ===========================================================================
-   Rounded-rectangle signed distance field with analytic outward unit normal
-   (Inigo Quilez rounded box). Negative inside, positive outside. Pure, no DOM.
-   =========================================================================== */
-
 export interface SdfSample {
   /** Signed distance to the boundary (CSS px): < 0 inside, > 0 outside. */
   readonly distance: number;

@@ -59,9 +59,8 @@ export interface GlassSliderProps extends GlassMaterialProps {
 }
 
 /**
- * Apple iOS 26/27 Liquid Glass UISlider (`role="slider"`, >= 44px touch target).
- * Rests as a crisp opaque white elongated pill over a slim frosted rail, swelling
- * into a lifted clear refracting Snell + Fresnel bead during press and scrub.
+ * Glass slider (role="slider"). The thumb rests as a white pill and lifts into a
+ * refracting bead while you drag.
  */
 export function GlassSlider({
   value,
@@ -94,7 +93,7 @@ export function GlassSlider({
   const ghostFillRef = useRef<HTMLDivElement>(null);
   const localSvgRef = useRef<SVGSVGElement>(null);
 
-  const hasStageSvg = stage.svgHostRef.current !== null;
+  const { hasStageSvg } = stage;
   const svgRef = hasStageSvg ? stage.svgHostRef : localSvgRef;
 
   const span = Math.max(1e-6, max - min);

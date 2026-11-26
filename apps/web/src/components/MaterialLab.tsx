@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
 import { DialRoot, useDialKitController } from "dialkit";
 import {
   GLASS_VARIANTS,
@@ -21,12 +29,12 @@ import {
 } from "@pavlonekrasov/liquid-glass-web";
 import { CopyCodeDrawer, type ExportableLabConfig } from "./CopyCodeDrawer";
 import {
-  CodeIcon,
+  ArrowLeftIcon,
+  GripIcon,
   HeartIcon,
   HomeIcon,
   LayersIcon,
   SearchIcon,
-  SparkleIcon,
 } from "./Icons";
 import {
   DaylightFeedBackdrop,
@@ -38,26 +46,38 @@ import {
 } from "./LabBackdrops";
 
 const BACKDROP_OPTIONS: readonly { value: LabBackdropId; label: string }[] = [
-  { value: "plasma", label: "Liquid Plasma" },
-  { value: "ribbon", label: "Twisted Ribbon" },
-  { value: "feed", label: "Daylight Feed" },
-  { value: "grid", label: "Optics Grid" },
-  { value: "split", label: "Light / Dark" },
+  { value: "plasma", label: "Plasma" },
+  { value: "ribbon", label: "Ribbon" },
+  { value: "feed", label: "Feed" },
+  { value: "grid", label: "Grid" },
+  { value: "split", label: "Split" },
 ];
 
-const TIER_SHORT: Record<ResolvedGlassTier, string> = {
-  "html-in-canvas": "Tier 0 · HTML-in-Canvas WebGL2",
-  "svg-backdrop": "Tier 1 · Chromium SVG Backdrop",
-  "svg-content": "Tier 2 · Aave Content-Path",
-  frost: "Tier 3 · High-Contrast Frost",
+const TIER_LABEL: Record<ResolvedGlassTier, string> = {
+  "html-in-canvas": "HTML in canvas",
+  "svg-backdrop": "SVG backdrop",
+  "svg-content": "Content path",
+  frost: "Frost",
 };
 
+const WIDE_QUERY = "(min-width: 821px)";
+
+function subscribeWide(onChange: () => void) {
+  const mq = window.matchMedia(WIDE_QUERY);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
+
 export function MaterialLab() {
+  // DialKit opens by default only where there is room for both panels.
+  const isWide = useSyncExternalStore(
+    subscribeWide,
+    () => window.matchMedia(WIDE_QUERY).matches,
+    () => true,
+  );
   const [activeTab, setActiveTab] = useState("home");
   const [switchChecked, setSwitchChecked] = useState(true);
   const [sliderValue, setSliderValue] = useState(0.62);
-  const [parkedLoupe, setParkedLoupe] = useState(false);
-  const [plasmaPaused, setPlasmaPaused] = useState(false);
   const [cleanView, setCleanView] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [resolvedTier, setResolvedTier] = useState<ResolvedGlassTier>("svg-backdrop");
@@ -74,9 +94,20 @@ export function MaterialLab() {
     originY: 0,
   });
 
+  // DialKit turns each key into its label, so keys are written in sentence case.
   const ctrl = useDialKitController(
     "Liquid Glass Lab",
     {
+      Scene: {
+        backdrop: {
+          type: "select" as const,
+          options: [...BACKDROP_OPTIONS],
+          default: "plasma",
+        },
+        "park loupe": false,
+        "fuse orb": false,
+        "pause plasma": false,
+      },
       Material: {
         variant: {
           type: "select" as const,
@@ -90,66 +121,60 @@ export function MaterialLab() {
         profile: {
           type: "select" as const,
           options: [
-            { value: "circle", label: "Circle (fold-free)" },
-            { value: "c2squircle", label: "C² Squircle" },
+            { value: "circle", label: "Circle" },
+            { value: "c2squircle", label: "C² squircle" },
             { value: "squircle", label: "Squircle" },
           ],
           default: "circle",
         },
-        adaptiveContrast: true,
-        tintColor: { type: "color" as const, default: "#0e121c" },
+        "adaptive contrast": true,
+        tint: { type: "color" as const, default: "#0e121c" },
         frost: [1.4, 0, 12, 0.1] as [number, number, number, number],
-        bodyOpacity: [0.18, 0, 0.75, 0.01] as [number, number, number, number],
+        "body opacity": [0.18, 0, 0.75, 0.01] as [number, number, number, number],
       },
       Optics: {
         refraction: [1.0, 0, 1.3, 0.02] as [number, number, number, number],
-        ior: [1.5168, 1.33, 1.75, 0.005] as [number, number, number, number],
+        "refractive index": [1.5168, 1.33, 1.75, 0.005] as [number, number, number, number],
         bezel: [16, 8, 24, 1] as [number, number, number, number],
         thickness: [22, 10, 34, 1] as [number, number, number, number],
-        loupeDispersion: [0.62, 0, 1.0, 0.02] as [number, number, number, number],
+        dispersion: [0.62, 0, 1.0, 0.02] as [number, number, number, number],
       },
-      "Light & Shadow": {
+      "Light and shadow": {
         _collapsed: true,
-        lightAngle: [-125, -180, 180, 1] as [number, number, number, number],
+        "light angle": [-125, -180, 180, 1] as [number, number, number, number],
         specular: [0.82, 0, 1, 0.02] as [number, number, number, number],
-        backBounce: [0.55, 0, 1, 0.02] as [number, number, number, number],
-        shadowStrength: [0.13, 0, 0.25, 0.01] as [number, number, number, number],
+        "back bounce": [0.55, 0, 1, 0.02] as [number, number, number, number],
+        shadow: [0.13, 0, 0.25, 0.01] as [number, number, number, number],
       },
-      "Motion & Morph": {
-        mergeRadius: [22, 0, 36, 1] as [number, number, number, number],
-        fuseOrb: false,
-        interactiveGlow: true,
-        pressCompression: true,
+      Motion: {
+        "merge radius": [22, 0, 36, 1] as [number, number, number, number],
+        "interactive glow": true,
+        "press compression": true,
       },
       Engine: {
         engine: {
           type: "select" as const,
           options: [
-            { value: "auto", label: "Auto (Tier 0 -> 3)" },
-            { value: "html-in-canvas", label: "Tier 0: HTML-in-Canvas" },
-            { value: "svg-backdrop", label: "Tier 1: SVG Backdrop" },
-            { value: "svg-content", label: "Tier 2: Aave Content" },
-            { value: "frost", label: "Tier 3: Frost" },
+            // Auto names the engine it picked, so no separate readout is needed.
+            { value: "auto", label: `Auto (${TIER_LABEL[resolvedTier]})` },
+            { value: "html-in-canvas", label: "HTML in canvas" },
+            { value: "svg-backdrop", label: "SVG backdrop" },
+            { value: "svg-content", label: "Content path" },
+            { value: "frost", label: "Frost" },
           ],
           default: "auto",
         },
-        backdrop: {
-          type: "select" as const,
-          options: [...BACKDROP_OPTIONS],
-          default: "plasma",
-        },
       },
-      copyJsx: {
-        type: "action" as const,
-        label: "Copy JSX & Props",
-      },
+      "export code": { type: "action" as const, label: "Export code" },
     },
     {
       id: "liquid-glass-material-lab",
+      shortcuts: {
+        "Scene.park loupe": { key: "p" },
+        "Scene.fuse orb": { key: "m" },
+      },
       onAction: (action) => {
-        if (action === "copyJsx") {
-          setExportOpen(true);
-        }
+        if (action === "export code") setExportOpen(true);
       },
     },
   );
@@ -158,10 +183,20 @@ export function MaterialLab() {
   const variant = d.Material.variant as GlassVariant;
   const profile = d.Material.profile as GlassShapeProfile;
   const enginePref = d.Engine.engine as GlassEnginePreference;
-  const backdrop = d.Engine.backdrop as LabBackdropId;
-  const fuseOrb = d["Motion & Morph"].fuseOrb;
+  const backdrop = d.Scene.backdrop as LabBackdropId;
+  const parkedLoupe = d.Scene["park loupe"];
+  const fuseOrb = d.Scene["fuse orb"];
+  const plasmaPaused = d.Scene["pause plasma"];
 
-  // Apply URL query overrides once on mount (for shareable links & automated optical harness)
+  // A new backdrop recenters the kit.
+  const [prevBackdrop, setPrevBackdrop] = useState(backdrop);
+  if (prevBackdrop !== backdrop) {
+    setPrevBackdrop(backdrop);
+    setDragPos({ x: 0, y: 0 });
+    setLayoutVersion((v) => v + 1);
+  }
+
+  // URL overrides, read once on mount (shareable links and the verify scripts)
   const initializedQueryRef = useRef(false);
   useEffect(() => {
     if (initializedQueryRef.current) return;
@@ -191,7 +226,7 @@ export function MaterialLab() {
       qBackdrop === "grid" ||
       qBackdrop === "split"
     ) {
-      ctrl.setValue("Engine.backdrop", qBackdrop);
+      ctrl.setValue("Scene.backdrop", qBackdrop);
     }
     if (qVariant === "regular" || qVariant === "clear" || qVariant === "tinted") {
       ctrl.setValue("Material.variant", qVariant);
@@ -199,12 +234,12 @@ export function MaterialLab() {
     if (qProfile === "circle" || qProfile === "c2squircle" || qProfile === "squircle") {
       ctrl.setValue("Material.profile", qProfile);
     }
-    if (qPaused === "1" || qPaused === "true") setPlasmaPaused(true);
-    if (qParked === "1" || qParked === "true") setParkedLoupe(true);
-    if (qFused === "1" || qFused === "true") ctrl.setValue("Motion & Morph.fuseOrb", true);
+    if (qPaused === "1" || qPaused === "true") ctrl.setValue("Scene.pause plasma", true);
+    if (qParked === "1" || qParked === "true") ctrl.setValue("Scene.park loupe", true);
+    if (qFused === "1" || qFused === "true") ctrl.setValue("Scene.fuse orb", true);
   }, [ctrl]);
 
-  // Sync coupled semantic defaults whenever Material.variant changes in DialKit
+  // Changing the variant resets the settings tied to it
   const prevVariantRef = useRef<GlassVariant>(variant);
   useEffect(() => {
     if (prevVariantRef.current === variant) return;
@@ -212,37 +247,41 @@ export function MaterialLab() {
     const seed = GLASS_VARIANTS[variant];
     ctrl.setValues({
       Material: {
-        tintColor: rgbToHex(seed.tintColor),
+        tint: rgbToHex(seed.tintColor),
         frost: seed.blur,
-        bodyOpacity: seed.tintAlpha,
+        "body opacity": seed.tintAlpha,
       },
       Optics: {
-        loupeDispersion: seed.loupeDispersion,
+        dispersion: seed.loupeDispersion,
       },
-      "Light & Shadow": {
-        lightAngle: seed.lightAngleDeg,
+      "Light and shadow": {
+        "light angle": seed.lightAngleDeg,
         specular: seed.highlightColor.a,
-        backBounce: seed.backBounce,
-        shadowStrength: seed.shadowAlpha,
+        "back bounce": seed.backBounce,
+        shadow: seed.shadowAlpha,
       },
     });
   }, [variant, ctrl]);
 
-  // Keyboard shortcuts: H hides HUD/DialKit, P parks loupe, M toggles smin orb fusion
+  // H hides every control. P and M are DialKit shortcuts on the Scene toggles.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target;
+      if (
+        t instanceof HTMLInputElement ||
+        t instanceof HTMLTextAreaElement ||
+        t instanceof HTMLSelectElement ||
+        (t instanceof HTMLElement && t.isContentEditable)
+      ) {
+        return;
+      }
       const k = e.key.toLowerCase();
       if (k === "h") setCleanView((v) => !v);
-      if (k === "p") setParkedLoupe((v) => !v);
-      if (k === "m") {
-        const cur = Boolean(ctrl.getValues()["Motion & Morph"].fuseOrb);
-        ctrl.setValue("Motion & Morph.fuseOrb", !cur);
-      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [ctrl]);
+  }, []);
 
   const tabs = useMemo<readonly GlassTabItem[]>(
     () => [
@@ -256,16 +295,16 @@ export function MaterialLab() {
 
   const opticsOverride = useMemo(
     () => ({
-      ior: d.Optics.ior,
+      ior: d.Optics["refractive index"],
       bezel: d.Optics.bezel,
       thickness: d.Optics.thickness,
-      tintColor: d.Material.tintColor,
-      bodyOpacity: d.Material.bodyOpacity,
-      lightAngle: d["Light & Shadow"].lightAngle,
-      specular: d["Light & Shadow"].specular,
-      backBounce: d["Light & Shadow"].backBounce,
-      shadowStrength: d["Light & Shadow"].shadowStrength,
-      pressCompression: d["Motion & Morph"].pressCompression,
+      tintColor: d.Material.tint,
+      bodyOpacity: d.Material["body opacity"],
+      lightAngle: d["Light and shadow"]["light angle"],
+      specular: d["Light and shadow"].specular,
+      backBounce: d["Light and shadow"]["back bounce"],
+      shadowStrength: d["Light and shadow"].shadow,
+      pressCompression: d.Motion["press compression"],
       edgeRingLight: variant !== "tinted" && backdrop !== "feed" && backdrop !== "grid",
     }),
     [d, variant, backdrop],
@@ -274,23 +313,23 @@ export function MaterialLab() {
   const exportConfig: ExportableLabConfig = {
     variant,
     profile,
-    adaptiveContrast: d.Material.adaptiveContrast,
-    tintColor: d.Material.tintColor,
+    adaptiveContrast: d.Material["adaptive contrast"],
+    tintColor: d.Material.tint,
     frost: d.Material.frost,
-    bodyOpacity: d.Material.bodyOpacity,
+    bodyOpacity: d.Material["body opacity"],
     refraction: d.Optics.refraction,
-    ior: d.Optics.ior,
+    ior: d.Optics["refractive index"],
     bezel: d.Optics.bezel,
     thickness: d.Optics.thickness,
-    loupeDispersion: d.Optics.loupeDispersion,
-    lightAngle: d["Light & Shadow"].lightAngle,
-    specular: d["Light & Shadow"].specular,
-    backBounce: d["Light & Shadow"].backBounce,
-    shadowStrength: d["Light & Shadow"].shadowStrength,
-    mergeRadius: d["Motion & Morph"].mergeRadius,
+    loupeDispersion: d.Optics.dispersion,
+    lightAngle: d["Light and shadow"]["light angle"],
+    specular: d["Light and shadow"].specular,
+    backBounce: d["Light and shadow"]["back bounce"],
+    shadowStrength: d["Light and shadow"].shadow,
+    mergeRadius: d.Motion["merge radius"],
     fuseOrb,
-    interactiveGlow: d["Motion & Morph"].interactiveGlow,
-    pressCompression: d["Motion & Morph"].pressCompression,
+    interactiveGlow: d.Motion["interactive glow"],
+    pressCompression: d.Motion["press compression"],
     engine: enginePref,
   };
 
@@ -325,6 +364,21 @@ export function MaterialLab() {
     dr.active = false;
   };
 
+  const onDragKey = (e: KeyboardEvent<HTMLButtonElement>) => {
+    const step = e.shiftKey ? 40 : 10;
+    const delta: Record<string, [number, number]> = {
+      ArrowLeft: [-step, 0],
+      ArrowRight: [step, 0],
+      ArrowUp: [0, -step],
+      ArrowDown: [0, step],
+    };
+    const move = delta[e.key];
+    if (!move) return;
+    e.preventDefault();
+    setDragPos((p) => ({ x: p.x + move[0], y: p.y + move[1] }));
+    setLayoutVersion((v) => v + 1);
+  };
+
   const activeTabLabel = tabs.find((t) => t.id === activeTab)?.label ?? "Home";
 
   return (
@@ -338,10 +392,10 @@ export function MaterialLab() {
         variant={variant}
         shapeProfile={profile}
         refraction={d.Optics.refraction}
-        dispersion={d.Optics.loupeDispersion}
+        dispersion={d.Optics.dispersion}
         frost={d.Material.frost}
-        interactive={d["Motion & Morph"].interactiveGlow}
-        adaptiveContrast={d.Material.adaptiveContrast}
+        interactive={d.Motion["interactive glow"]}
+        adaptiveContrast={d.Material["adaptive contrast"]}
         optics={opticsOverride}
         continuousScene={backdrop === "plasma" && !plasmaPaused}
         sceneKey={`${backdrop}-${plasmaPaused ? "p" : "r"}`}
@@ -370,22 +424,24 @@ export function MaterialLab() {
               <button
                 type="button"
                 className="lab-drag-handle"
-                aria-label="Drag kit anywhere to inspect refraction"
+                aria-label="Move the glass. Drag, or use the arrow keys."
+                title="Drag to move the glass"
                 onPointerDown={onDragStart}
                 onPointerMove={onDragMove}
                 onPointerUp={onDragEnd}
                 onPointerCancel={onDragEnd}
+                onKeyDown={onDragKey}
               >
-                <span>Drag kit</span>
+                <GripIcon size={14} />
               </button>
             )}
 
-            <GlassContainer id="nav" mergeRadius={d["Motion & Morph"].mergeRadius}>
+            <GlassContainer id="nav" mergeRadius={d.Motion["merge radius"]}>
               <GlassTabBar
                 items={tabs}
                 value={activeTab}
                 onChange={(next) => {
-                  setParkedLoupe(false);
+                  if (parkedLoupe) ctrl.setValue("Scene.park loupe", false);
                   setActiveTab(next);
                 }}
                 parkedLoupe={parkedLoupe}
@@ -393,9 +449,9 @@ export function MaterialLab() {
               />
               <GlassOrb
                 merged={fuseOrb}
-                onClick={() => ctrl.setValue("Motion & Morph.fuseOrb", !fuseOrb)}
+                onClick={() => ctrl.setValue("Scene.fuse orb", !fuseOrb)}
                 aria-label={fuseOrb ? "Detach search orb" : "Fuse search orb with tab bar"}
-                title="Click or press M to toggle smin liquid fusion"
+                title="Fuse with the tab bar (M)"
               >
                 <SearchIcon size={20} />
               </GlassOrb>
@@ -405,132 +461,67 @@ export function MaterialLab() {
               <GlassSwitch
                 checked={switchChecked}
                 onCheckedChange={setSwitchChecked}
-                aria-label="Liquid Glass Toggle Switch"
+                aria-label="Demo switch"
               />
               <GlassSlider
                 value={sliderValue}
                 onValueChange={setSliderValue}
-                aria-label="Liquid Glass Range Slider"
+                aria-label="Demo slider"
               />
             </div>
           </div>
         </GlassStage.Chrome>
       </GlassStage>
 
-      {/* Compact Top-Left HUD & Quick Actions */}
-      {!cleanView ? (
-        <>
-          <header className="lab-hud">
-            <Link href="/" className="lab-chip lab-chip--standalone">
-              ← Showcase
+      <nav className="lab-bar" aria-label="Lab">
+        {cleanView ? (
+          <button
+            type="button"
+            className="lab-bar__btn"
+            onClick={() => setCleanView(false)}
+            aria-keyshortcuts="H"
+          >
+            Show controls <span className="lab-bar__key">H</span>
+          </button>
+        ) : (
+          <>
+            <Link href="/" className="lab-bar__btn">
+              <ArrowLeftIcon size={14} />
+              Liquid Glass
             </Link>
-
-            <div className="lab-pill-row" role="group" aria-label="Test backdrops">
-              {BACKDROP_OPTIONS.map((b) => (
-                <button
-                  key={b.value}
-                  type="button"
-                  className={`lab-chip${backdrop === b.value ? " is-active" : ""}`}
-                  onClick={() => {
-                    ctrl.setValue("Engine.backdrop", b.value);
-                    setDragPos({ x: 0, y: 0 });
-                    setLayoutVersion((v) => v + 1);
-                  }}
-                >
-                  {b.label}
-                </button>
-              ))}
-            </div>
-
             <button
               type="button"
-              className={`lab-chip lab-chip--standalone${parkedLoupe ? " is-active" : ""}`}
-              onClick={() => setParkedLoupe((v) => !v)}
-              title="Freeze lifted refracting loupe between Home and Search (shortcut: P)"
-            >
-              <SparkleIcon size={14} />
-              <span>{parkedLoupe ? "Loupe Parked" : "Park Loupe"}</span>
-            </button>
-
-            <button
-              type="button"
-              className={`lab-chip lab-chip--standalone${fuseOrb ? " is-active" : ""}`}
-              onClick={() => ctrl.setValue("Motion & Morph.fuseOrb", !fuseOrb)}
-              title="Toggle GlassContainer smin liquid meniscus fusion (shortcut: M)"
-            >
-              <span>{fuseOrb ? "Orb Fused" : "Fuse Orb"}</span>
-            </button>
-
-            {backdrop === "plasma" && (
-              <button
-                type="button"
-                className={`lab-chip lab-chip--standalone${plasmaPaused ? " is-active" : ""}`}
-                onClick={() => setPlasmaPaused((v) => !v)}
-                title="Pause or resume animated plasma canvas"
-              >
-                <span>{plasmaPaused ? "Resume Plasma" : "Pause Plasma"}</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              className="lab-chip lab-chip--standalone"
-              onClick={() => setExportOpen(true)}
-            >
-              <CodeIcon size={14} />
-              <span>Copy JSX &amp; Props</span>
-            </button>
-
-            <button
-              type="button"
-              className="lab-chip lab-chip--standalone"
+              className="lab-bar__btn"
               onClick={() => setCleanView(true)}
-              title="Hide HUD and DialKit controls (shortcut: H)"
+              aria-keyshortcuts="H"
             >
-              <span>Hide HUD</span>
+              Hide controls <span className="lab-bar__key">H</span>
             </button>
-          </header>
+          </>
+        )}
+      </nav>
 
-          {/* Engine Diagnostics Pill & Mandatory DialKit Attribution */}
-          <aside className="lab-diag-pill" aria-label="Optical diagnostics">
-            <div className="lab-diag-pill__metrics">
-              <strong className="lab-diag-pill__badge">{TIER_SHORT[resolvedTier]}</strong>
-              {diag?.legibility && (
-                <span className="lab-diag-pill__ok">
-                  WCAG {diag.legibility.worstContrast.toFixed(1)}:1 AA
-                </span>
-              )}
-              {diag?.bar && (
-                <span className="lab-diag-pill__muted">
-                  dMax {diag.bar.dMax.toFixed(2)}px · minJ{" "}
-                  {diag.bar.clampedMinJacobian.toFixed(2)} · bake {diag.bar.bakeMs.toFixed(1)}ms
-                </span>
-              )}
-            </div>
-            <div className="lab-diag-pill__credit">
-              Parameter controls powered by{" "}
-              <a href="https://dialkit.dev" target="_blank" rel="noreferrer">
-                DialKit
-              </a>{" "}
-              by{" "}
-              <a href="https://github.com/joshpuckett/dialkit" target="_blank" rel="noreferrer">
-                Josh Puckett
-              </a>
-              .
-            </div>
-          </aside>
+      {!cleanView && (
+        <p className="lab-credit">
+          Controls by{" "}
+          <a href="https://dialkit.dev" target="_blank" rel="noreferrer">
+            DialKit
+          </a>{" "}
+          from{" "}
+          <a href="https://github.com/joshpuckett/dialkit" target="_blank" rel="noreferrer">
+            Josh Puckett
+          </a>
+        </p>
+      )}
 
-          <DialRoot position="top-right" defaultOpen theme="dark" productionEnabled />
-        </>
-      ) : (
-        <button
-          type="button"
-          className="lab-unhide-btn"
-          onClick={() => setCleanView(false)}
-          title="Restore HUD and DialKit controls (shortcut: H)"
-        >
-          Show HUD (H)
-        </button>
+      {!cleanView && (
+        <DialRoot
+          key={isWide ? "wide" : "narrow"}
+          position="top-right"
+          defaultOpen={isWide}
+          theme="dark"
+          productionEnabled
+        />
       )}
 
       <CopyCodeDrawer

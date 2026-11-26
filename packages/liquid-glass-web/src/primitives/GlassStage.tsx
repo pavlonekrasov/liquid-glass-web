@@ -52,21 +52,21 @@ function isChromeSlot(node: ReactNode): boolean {
 
 export interface GlassStageProps extends GlassMaterialProps {
   children?: ReactNode;
-  /** Streams animated canvas backdrops at ~30 Hz into Tier 0 WebGL2 scene texture. */
+  /** Streams animated canvas backdrops (~30 Hz) into the Tier 0 scene. */
   continuousScene?: boolean;
-  /** Optional scene key triggering an immediate Tier 0 scene texture refresh when changed. */
+  /** Change it to refresh the Tier 0 scene texture right away. */
   sceneKey?: string;
-  /** Layout key notifying child Tier 0 nodes to re-measure geometry (e.g. after moving chrome). */
+  /** Change it to make Tier 0 nodes re-measure (e.g. after moving chrome). */
   layoutVersion?: number;
-  /** Viewport-fixed full-bleed stage (default true) vs flow-contained stage. */
+  /** Fixed full-viewport stage (default true) or in-flow. */
   fullscreen?: boolean;
   className?: string;
   sceneClassName?: string;
   chromeClassName?: string;
   style?: CSSProperties;
-  /** Callback fired whenever the active tier (Tier 0/1/2/3) changes. */
+  /** Called when the active tier changes. */
   onTierChange?: (tier: ResolvedGlassTier) => void;
-  /** Callback fired whenever scroll-adaptive WCAG AA legibility updates. */
+  /** Called when legibility (text polarity and scrim) updates. */
   onLegibilityChange?: (legibility: AdaptiveLegibilityResult | null) => void;
 }
 
@@ -107,6 +107,7 @@ function GlassStageRoot({
   const [hicFailed, setHicFailed] = useState(false);
   const [legibility, setLegibility] = useState<AdaptiveLegibilityResult | null>(null);
   const [childConfigOverride, setChildConfigOverride] = useState<ResolvedGlassConfig | null>(null);
+  const [scrollLayoutTick, setScrollLayoutTick] = useState(0);
 
   useEffect(() => {
     const sync = () => setCapabilities(readGlassCapabilities());
@@ -153,7 +154,7 @@ function GlassStageRoot({
     ],
   );
 
-  // Stage props take priority when explicit; otherwise allow child component config sync for Tier 0
+  // Explicit stage props win; otherwise children can sync config for Tier 0
   const hasExplicitStageStyle =
     variant !== undefined ||
     shapeProfile !== undefined ||
@@ -208,6 +209,26 @@ function GlassStageRoot({
   const useHic = tier === "html-in-canvas";
   const activeBridge = useHic ? hicBridge : null;
 
+  // Keep in-flow Tier 0 surfaces aligned while the page scrolls
+  useEffect(() => {
+    if (fullscreen || !useHic) return;
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setScrollLayoutTick((t) => t + 1);
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [fullscreen, useHic]);
+
+  const effectiveLayoutVersion = layoutVersion + scrollLayoutTick;
+
   const requestChromePaint = useCallback(() => {
     activeBridge?.requestPaint();
   }, [activeBridge]);
@@ -248,6 +269,7 @@ function GlassStageRoot({
       capabilities,
       config: effectiveConfig,
       svgHostRef,
+      hasStageSvg: true,
       hicBridge: activeBridge,
       reducedMotion: capabilities.reducedMotion,
       legibility,
@@ -256,7 +278,7 @@ function GlassStageRoot({
       registerMorphGroup,
       requestChromePaint,
       syncStageConfig,
-      layoutVersion,
+      layoutVersion: effectiveLayoutVersion,
     }),
     [
       tier,
@@ -269,7 +291,7 @@ function GlassStageRoot({
       registerMorphGroup,
       requestChromePaint,
       syncStageConfig,
-      layoutVersion,
+      effectiveLayoutVersion,
     ],
   );
 

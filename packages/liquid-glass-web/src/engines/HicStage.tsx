@@ -89,8 +89,7 @@ export function HicStage({
     bridge.requestPaint();
   }, [sceneKey, bridge]);
 
-  // Throttle continuous animated canvas backdrops to ~30 Hz (>= 32 ms) so 2x Retina
-  // texElementSubImage2D uploads never starve 120fps WebGL2 spring redraws.
+  // Throttle animated canvas backdrops to ~30 Hz so texture uploads don't starve spring redraws.
   useEffect(() => {
     if (!continuousScene) return;
     const reducedMq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -182,7 +181,8 @@ export function HicStage({
 
     let barFboTex = createTexture(gl, pw, ph, texOpts);
     const barFbo = gl.createFramebuffer();
-    if (!barFbo) {
+    const probeFbo = gl.createFramebuffer();
+    if (!barFbo || !probeFbo) {
       onFallbackRef.current();
       return;
     }
@@ -205,7 +205,100 @@ export function HicStage({
     const loupeTouchR = new Float32Array(MAX_HIC_LOUPES);
 
     let uploadedOnce = false;
+    let verifiedLiveTexture = false;
+    let blankUploadRetries = 0;
     let drawRaf = 0;
+    let retryRaf = 0;
+    let fallbackTriggered = false;
+    const probePx = new Uint8Array(4);
+
+    const triggerFallback = () => {
+      if (fallbackTriggered) return;
+      fallbackTriggered = true;
+      onFallbackRef.current();
+    };
+
+    /** One-time GPU readback guard: detects silent black/empty texElementSubImage2D uploads. */
+    const verifySceneTexturePopulated = (): boolean => {
+      if (sceneTexW < 4 || sceneTexH < 4) return false;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, probeFbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, sceneTex, 0);
+      const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+      if (status !== gl.FRAMEBUFFER_COMPLETE) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        return false;
+      }
+      let maxAlpha = 0;
+      let maxRgb = 0;
+      const fracs = [0.15, 0.5, 0.85];
+      for (const fy of fracs) {
+        const y = Math.min(sceneTexH - 1, Math.max(0, Math.floor(sceneTexH * fy)));
+        for (const fx of fracs) {
+          const x = Math.min(sceneTexW - 1, Math.max(0, Math.floor(sceneTexW * fx)));
+          gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, probePx);
+          if (probePx[3] > maxAlpha) maxAlpha = probePx[3];
+          const rgb = Math.max(probePx[0], probePx[1], probePx[2]);
+          if (rgb > maxRgb) maxRgb = rgb;
+          if (maxAlpha > 0 && maxRgb > 0) break;
+        }
+        if (maxAlpha > 0 && maxRgb > 0) break;
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      return maxAlpha > 0 && maxRgb > 0;
+    };
+
+    const verifyChromeTexturePopulated = (): boolean => {
+      if (chromeTexW < 4 || chromeTexH < 4) return false;
+      const hasVisibleChrome =
+        chromeEl.innerText.trim().length > 0 || Boolean(chromeEl.querySelector("svg"));
+      if (!hasVisibleChrome) return true;
+      const surfaces = bridge.getSurfaces();
+      const canvasRect = rawCanvas.getBoundingClientRect();
+      const targets =
+        surfaces.length > 0
+          ? surfaces.map((s) => ({
+              cx:
+                canvasRect.width > 0
+                  ? Math.min(0.95, Math.max(0.05, (s.cx - canvasRect.left) / canvasRect.width))
+                  : 0.5,
+              cy:
+                canvasRect.height > 0
+                  ? Math.min(0.95, Math.max(0.05, 1 - (s.cy - canvasRect.top) / canvasRect.height))
+                  : 0.5,
+            }))
+          : [{ cx: 0.5, cy: 0.5 }];
+
+      gl.bindFramebuffer(gl.FRAMEBUFFER, probeFbo);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, chromeTex, 0);
+      if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        return false;
+      }
+      const patchW = Math.min(chromeTexW, 64);
+      const patchH = Math.min(chromeTexH, 32);
+      const patch = new Uint8Array(patchW * patchH * 4);
+      let found = false;
+      for (const t of targets) {
+        const px0 = Math.min(
+          chromeTexW - patchW,
+          Math.max(0, Math.floor(chromeTexW * t.cx - patchW / 2)),
+        );
+        const py0 = Math.min(
+          chromeTexH - patchH,
+          Math.max(0, Math.floor(chromeTexH * t.cy - patchH / 2)),
+        );
+        gl.readPixels(px0, py0, patchW, patchH, gl.RGBA, gl.UNSIGNED_BYTE, patch);
+        for (let i = 3; i < patch.length; i += 4) {
+          if (patch[i] > 4) {
+            found = true;
+            break;
+          }
+        }
+        if (found) break;
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      return found;
+    };
 
     const profileIndex = (p: ResolvedGlassConfig["profile"]) =>
       p === "circle" ? 0 : p === "c2squircle" ? 1 : 2;
@@ -275,7 +368,7 @@ export function HicStage({
         surfTouch[o + 3] = s.touchRadius ?? 56;
       }
 
-      // Pass 1: Live HTML scene + Generic GlassNode[8] (with smin) + Live DOM chrome -> FBO
+      // Pass 1: scene and glass nodes into the framebuffer
       gl.bindFramebuffer(gl.FRAMEBUFFER, barFbo);
       gl.viewport(0, 0, pw, ph);
       gl.useProgram(barProg.p);
@@ -335,7 +428,7 @@ export function HicStage({
 
       gl.drawArrays(gl.TRIANGLES, 0, 3);
 
-      // Pass 2: Generic Float32 11-tap Cauchy-Snell Refracting Loupes -> Screen
+      // Pass 2: loupes to the screen
       const defaultRingAlpha =
         c.edgeRingAlpha > 0.005 ? Math.min(0.2, c.edgeRingAlpha + 0.04) : c.edgeRingAlpha;
       const defaultTintAlpha = Math.min(0.04, c.tintAlpha * 0.25);
@@ -455,7 +548,7 @@ export function HicStage({
     };
 
     canvas.onpaint = (ev) => {
-      if (gl.isContextLost()) return;
+      if (gl.isContextLost() || fallbackTriggered) return;
       const changed = ev.changedElements;
       const dirtyAll = !uploadedOnce || !changed || changed.length === 0;
       const sceneDirty = dirtyAll || changed.includes(sceneEl);
@@ -468,7 +561,15 @@ export function HicStage({
         // ignore transient layout state
       }
 
-      // CRITICAL: getElementImageDefaultSize MUST only be invoked inside canvas.onpaint.
+      let uploadThrew = false;
+      let sceneUploaded = !sceneDirty;
+      let chromeUploaded = !chromeDirty;
+
+      while (gl.getError() !== gl.NO_ERROR) {
+        // drain
+      }
+
+      // getElementImageDefaultSize may only be called inside canvas.onpaint.
       if (sceneDirty) {
         try {
           const sz = canvas.getElementImageDefaultSize(sceneEl);
@@ -483,9 +584,14 @@ export function HicStage({
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
             gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0);
             gl.texElementSubImage2D(gl.TEXTURE_2D, 0, 0, 0, sceneEl);
+            if (gl.getError() === gl.NO_ERROR) {
+              sceneUploaded = true;
+            } else {
+              uploadThrew = true;
+            }
           }
         } catch {
-          // element not yet painted
+          uploadThrew = true;
         }
       }
 
@@ -503,10 +609,36 @@ export function HicStage({
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
             gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 1);
             gl.texElementSubImage2D(gl.TEXTURE_2D, 0, 0, 0, chromeEl);
+            if (gl.getError() === gl.NO_ERROR) {
+              chromeUploaded = true;
+            } else {
+              uploadThrew = true;
+            }
           }
         } catch {
-          // element not yet painted
+          uploadThrew = true;
         }
+      }
+
+      if (!verifiedLiveTexture) {
+        const texturesPopulated =
+          !uploadThrew &&
+          sceneUploaded &&
+          chromeUploaded &&
+          verifySceneTexturePopulated() &&
+          verifyChromeTexturePopulated();
+
+        if (!texturesPopulated) {
+          blankUploadRetries += 1;
+          if (blankUploadRetries >= 3) {
+            triggerFallback();
+            return;
+          }
+          cancelAnimationFrame(retryRaf);
+          retryRaf = requestAnimationFrame(() => requestPaint());
+          return;
+        }
+        verifiedLiveTexture = true;
       }
 
       uploadedOnce = true;
@@ -516,11 +648,16 @@ export function HicStage({
     const ro = new ResizeObserver(resize);
     ro.observe(rawCanvas);
     window.addEventListener("resize", resize);
+    const watchdog = window.setTimeout(() => {
+      if (!verifiedLiveTexture) triggerFallback();
+    }, 800);
     requestPaint();
 
     return () => {
       unbind();
       cancelAnimationFrame(drawRaf);
+      cancelAnimationFrame(retryRaf);
+      window.clearTimeout(watchdog);
       ro.disconnect();
       window.removeEventListener("resize", resize);
       canvas.onpaint = null;
@@ -528,6 +665,7 @@ export function HicStage({
       gl.deleteTexture(chromeTex);
       gl.deleteTexture(barFboTex);
       gl.deleteFramebuffer(barFbo);
+      gl.deleteFramebuffer(probeFbo);
       gl.deleteVertexArray(vao);
       gl.deleteProgram(barProg.p);
       gl.deleteProgram(loupeProg.p);

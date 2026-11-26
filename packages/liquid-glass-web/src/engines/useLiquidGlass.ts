@@ -42,9 +42,9 @@ export interface LiquidGlassDiagnostics {
 export interface UseLiquidGlassOptions {
   readonly role?: "surface" | "loupe";
   readonly scaleMultiplier?: number;
-  /** Enables Tier 2 Aave cross-browser content-path `filter: url(#...-cN)` refraction. */
+  /** Tier 2: refract content through `filter: url(#...)` (Safari, Firefox). */
   readonly contentPath?: boolean;
-  /** Disables SVG refraction filter while keeping seam-free Fresnel + Beer–Lambert overlays. */
+  /** Turns off refraction but keeps the lighting and tint overlays. */
   readonly frostOnly?: boolean;
   readonly blurOverride?: number;
   readonly tintAlphaOverride?: number;
@@ -103,12 +103,9 @@ interface FilterRefs {
 }
 
 /**
- * Builds either:
- * - Tier 1 Chromium 1-tap linear feDisplacementMap (100+ FPS GPU fast-path — NEVER
- *   multi-tap fan-out inside backdrop-filter: url(), which stalls Skia ~450 ms/frame!).
- * - Tier 2 Aave content-path 5-band continuous spectral SVG pipeline (`filter: url(#...-cN)`):
- *   preserves premultiplied RGB (`mA = 1`) and accumulates normalized coverage `A_avg`
- *   in parallel, recombining via `rgbOpaque - (1 - A_avg)` (0/255 error, zero dark halo).
+ * Tier 1 uses a single linear feDisplacementMap: several taps inside
+ * backdrop-filter: url() stall Skia at ~450 ms per frame. Tier 2 runs five spectral
+ * bands on content and recombines coverage so edges get no dark halo.
  */
 function buildFilterNode(
   id: string,
@@ -315,11 +312,7 @@ function useMediaQuery(query: string): boolean {
   return matches;
 }
 
-/**
- * Low-level React hook baking seam-free Fresnel lighting, Beer–Lambert body absorption,
- * and fold-free 9-slice Snell refraction filters for Tier 1 (Chromium SVG Backdrop) and
- * Tier 2 (Safari/Firefox Aave Content-Path). Disabled cleanly when Tier 0 WebGL2 is active.
- */
+/** Bakes the lighting, tint and refraction filters for Tier 1 and Tier 2. Does nothing on Tier 0. */
 export function useLiquidGlass(
   elRef: RefObject<HTMLElement | null>,
   svgHostRef: RefObject<SVGSVGElement | null>,
@@ -438,7 +431,7 @@ export function useLiquidGlass(
     [applyFilterScale],
   );
 
-  // Bake light, tint, and 9-slice Snell tiles strictly on geometry/config changes (0 bakes during gestures)
+  // Bake only when geometry or config changes, never during gestures
   useEffect(() => {
     const el = elRef.current;
     const host = svgHostRef.current;
@@ -515,8 +508,7 @@ export function useLiquidGlass(
       el.style.setProperty("--lgw-body-inset", `${borderWidth}px`);
     }
 
-    // Tier 1 Chromium backdrop-filter MUST use linear 1-tap feDisplacementMap (100+ FPS fast-path).
-    // Tier 2 Aave content-path runs full 5-band continuous spectral dispersion (~60 FPS).
+    // Tier 1: one linear tap (see above). Tier 2: five spectral bands.
     const useBackdropUrl = !frostOnly && !contentPath && isChromium;
     const useContentFilter = !frostOnly && contentPath;
     const dispersionMode: DispersionMode =
@@ -545,8 +537,13 @@ export function useLiquidGlass(
         const built = buildFilterNode(activeFilterId, dispersionMode, useContentFilter);
         host.append(built.filter);
         filterRef.current = built;
-      } else if (useContentFilter) {
-        filterRef.current.filter.setAttribute("id", activeFilterId);
+      } else {
+        if (filterRef.current.filter.parentNode !== host) {
+          host.append(filterRef.current.filter);
+        }
+        if (useContentFilter) {
+          filterRef.current.filter.setAttribute("id", activeFilterId);
+        }
       }
 
       const f = filterRef.current;
@@ -577,7 +574,7 @@ export function useLiquidGlass(
       }
 
       dMaxRef.current = dMax;
-      // Set static scale once on geometry/config bake (NEVER mutate per frame during springs!)
+      // Scale is set once per bake, not per frame
       applyFilterScale(2 * dMax * Math.max(0, activeStrength) * scaleMultiplier, activeDispersion);
 
       el.style.setProperty("--lgw-lens-url", `url(#${activeFilterId})`);

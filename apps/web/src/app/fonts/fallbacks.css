@@ -1,0 +1,28 @@
+/* Size-adjusted fallbacks from next/font, so the font swap doesn't shift layout. */
+
+@font-face {
+  font-family: "Lora Fallback";
+  src: local("Times New Roman");
+  ascent-override: 87.33%;
+  descent-override: 23.78%;
+  line-gap-override: 0%;
+  size-adjust: 115.2%;
+}
+
+@font-face {
+  font-family: "Geist Fallback";
+  src: local("Arial");
+  ascent-override: 95.94%;
+  descent-override: 28.16%;
+  line-gap-override: 0%;
+  size-adjust: 104.76%;
+}
+
+@font-face {
+  font-family: "Annie Use Your Telescope Fallback";
+  src: local("Arial");
+  ascent-override: 132.48%;
+  descent-override: 52.92%;
+  line-gap-override: 0%;
+  size-adjust: 77.33%;
+}

@@ -7,18 +7,158 @@
 }
 
 :root {
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", system-ui, sans-serif;
+  color-scheme: light;
+
+  --navy-50: oklch(0.972 0.006 255.5);
+  --navy-100: oklch(0.935 0.009 247.9);
+  --navy-200: oklch(0.87 0.012 248);
+  --navy-300: oklch(0.779 0.016 251.2);
+  --navy-400: oklch(0.665 0.02 250.7);
+  --navy-500: oklch(0.555 0.022 253);
+  --navy-600: oklch(0.453 0.02 251);
+  --navy-700: oklch(0.356 0.015 248.3);
+  --navy-800: oklch(0.267 0.011 254);
+  --navy-900: oklch(0.195 0.007 258.4);
+  --navy-950: oklch(0.134 0.005 262.3);
+
+  --paper: oklch(0.979 0.007 88.6);
+  --paper-deep: oklch(0.947 0.014 84.6);
+  --card: oklch(1 0 0);
+  --surface-bar: oklch(0.986 0.005 88.6);
+  --surface-highlight: oklch(0.947 0.014 84.6 / 0.65);
+
+  --ink: var(--navy-900);
+  --ink-soft: var(--navy-700);
+  --muted: oklch(0.495 0.022 253);
+  --faint: oklch(0.56 0.02 251);
+
+  --line: oklch(0.195 0.007 258.4 / 0.14);
+  --line-strong: oklch(0.195 0.007 258.4 / 0.28);
+  --line-hover: oklch(0.195 0.007 258.4 / 0.44);
+
+  --accent: var(--navy-900);
+  --accent-hover: var(--navy-950);
+
+  --surface-navy: oklch(0.162 0.032 256);
+  --surface-navy-ink: oklch(0.972 0.006 255.5);
+  --surface-navy-muted: oklch(0.79 0.016 251.2);
+  --surface-navy-line: oklch(0.935 0.014 250 / 0.16);
+  --stage-grid-paper: oklch(0.195 0.007 258.4 / 0.085);
+  --stage-rule-paper: oklch(0.195 0.007 258.4 / 0.34);
+  --stage-rule-paper-soft: oklch(0.195 0.007 258.4 / 0.15);
+  --stage-grid-navy: oklch(0.935 0.014 250 / 0.1);
+  --stage-rule-navy: oklch(0.972 0.006 255.5 / 0.38);
+  --stage-rule-navy-soft: oklch(0.972 0.006 255.5 / 0.16);
+
+  --code-ln: var(--faint);
+  --tok-keyword: var(--navy-900);
+  --tok-component: oklch(0.36 0.085 256);
+  --tok-prop: oklch(0.42 0.075 62);
+  --tok-string: oklch(0.37 0.078 162);
+  --tok-number: oklch(0.41 0.082 298);
+  --tok-punct: oklch(0.46 0.016 253);
+
+  --font-serif: var(--font-lora), "Lora", Georgia, "Times New Roman", serif;
+  --font-sans:
+    var(--font-geist), "Geist", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Menlo, monospace;
+
+  --text-micro: 0.75rem;
+  --lh-micro: 1.4;
+  --ls-micro: 0.04em;
+
+  --text-meta: 0.875rem;
+  --lh-meta: 1.5;
+  --ls-meta: 0.01em;
+
+  --text-body: 1rem;
+  --lh-body: 1.7;
+
+  --text-h3: clamp(1.25rem, 1.18rem + 0.25vw, 1.4375rem);
+  --lh-h3: 1.3;
+  --ls-h3: -0.005em;
+
+  --text-h2: clamp(1.5625rem, 1.44rem + 0.5vw, 1.9375rem);
+  --lh-h2: 1.2;
+  --ls-h2: -0.015em;
+
+  --text-h1: clamp(2.125rem, 1.916rem + 0.857vw, 2.6875rem);
+  --lh-h1: 1.12;
+  --ls-h1: -0.02em;
+
+  --text-display: clamp(2.375rem, 2.02rem + 1.45vw, 3.375rem);
+  --lh-display: 1.06;
+  --ls-display: -0.02em;
+
+  --sp-1: 4px;
+  --sp-1-5: 6px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+  --sp-20: 80px;
+  --sp-24: 96px;
+  --sp-32: 128px;
+
+  --measure: 680px;
+  --gutter: clamp(20px, 5vw, 48px);
+  --space-section: clamp(64px, 51.6px + 3.05vw, 96px);
+  --space-head: var(--sp-6);
+
+  --radius-s: 6px;
+  --radius-m: 12px;
+  --radius-pill: 999px;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --dur-hover: 150ms;
+  --dur-ui: 220ms;
+  --dur-page-enter: 600ms;
+  --enter-body: 80ms;
+  --enter-step: 60ms;
+}
+
+html {
+  min-width: 320px;
+  background-color: var(--paper);
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 html,
 body {
   min-height: 100%;
   font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #070b12;
-  color: #f4f6fb;
+  background-color: var(--paper);
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+::selection {
+  background-color: var(--ink);
+  color: var(--paper);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+  border-radius: 2px;
 }
 
 a {
@@ -26,338 +166,20 @@ a {
   text-decoration: none;
 }
 
-/* ---- Showcase Editorial Landing ------------------------------------------- */
-
-.sc-page {
-  position: relative;
-  min-height: 100svh;
-  background-color: #070b12;
-  color: #f4f6fb;
+@keyframes rise {
+  from {
+    opacity: 0.01;
+    transform: translateY(12px);
+  }
 }
 
-.sc-hero {
-  position: relative;
-  overflow: hidden;
-  min-height: 100svh;
-  padding: 28px 24px 190px;
-  background-color: #070b12;
-  background-image:
-    radial-gradient(ellipse 68% 58% at 18% 12%, rgb(16 112 108 / 0.42), transparent 62%),
-    radial-gradient(ellipse 56% 50% at 82% 24%, rgb(196 122 24 / 0.34), transparent 58%),
-    radial-gradient(ellipse 60% 45% at 50% 94%, rgb(24 58 118 / 0.36), transparent 65%);
+@media (prefers-reduced-motion: reduce) {
+  @keyframes rise {
+    from {
+      opacity: 0.01;
+    }
+  }
 }
-
-.sc-container {
-  max-width: 1080px;
-  margin: 0 auto;
-}
-
-.sc-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 34px;
-  flex-wrap: wrap;
-}
-
-.sc-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.sc-brand__dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: radial-gradient(circle at 32% 30%, #ffffff 0%, #7dd3fc 42%, #0ea5e9 100%);
-  box-shadow: 0 0 14px rgb(56 189 248 / 0.65);
-}
-
-.sc-nav-links {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.sc-pill-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
-  min-height: 36px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 500;
-  border: 1px solid rgb(255 255 255 / 0.14);
-  background-color: rgb(255 255 255 / 0.06);
-  color: rgb(255 255 255 / 0.9);
-  transition: background-color 150ms ease, transform 150ms ease;
-}
-
-.sc-pill-link:hover {
-  background-color: rgb(255 255 255 / 0.14);
-}
-
-.sc-pill-link--primary {
-  background-color: #ffffff;
-  color: #0b0e14;
-  border-color: #ffffff;
-  font-weight: 600;
-}
-
-.sc-pill-link--primary:hover {
-  background-color: #e8eef9;
-}
-
-.sc-hero__eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  background-color: rgb(255 255 255 / 0.08);
-  border: 1px solid rgb(255 255 255 / 0.14);
-  color: rgb(255 255 255 / 0.86);
-  margin-bottom: 20px;
-}
-
-.sc-hero__tier-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background-color: #4ade80;
-}
-
-.sc-hero__title {
-  font-size: clamp(2.35rem, 5.2vw, 3.9rem);
-  font-weight: 700;
-  line-height: 1.03;
-  letter-spacing: -0.035em;
-  font-optical-sizing: auto;
-  max-width: 15ch;
-  margin-bottom: 16px;
-}
-
-.sc-hero__lead {
-  font-size: clamp(1rem, 1.7vw, 1.15rem);
-  line-height: 1.52;
-  color: rgb(244 246 251 / 0.76);
-  max-width: 60ch;
-  margin-bottom: 22px;
-}
-
-.sc-hero__actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 24px;
-}
-
-.sc-install-cmd {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  min-height: 44px;
-  border-radius: 999px;
-  background-color: rgb(15 20 30 / 0.86);
-  border: 1px solid rgb(255 255 255 / 0.16);
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: #e2e8f0;
-  cursor: pointer;
-  transition: border-color 150ms ease, background-color 150ms ease;
-}
-
-.sc-install-cmd:hover {
-  border-color: rgb(255 255 255 / 0.34);
-  background-color: rgb(22 28 42 / 0.92);
-}
-
-.sc-install-cmd__badge {
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background-color: rgb(255 255 255 / 0.12);
-  color: #ffffff;
-}
-
-.sc-quick-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 16px;
-  padding: 16px 20px;
-  border-radius: 22px;
-  background-color: rgb(255 255 255 / 0.05);
-  border: 1px solid rgb(255 255 255 / 0.1);
-}
-
-.sc-seg-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px;
-  border-radius: 999px;
-  background-color: rgb(0 0 0 / 0.35);
-  border: 1px solid rgb(255 255 255 / 0.1);
-}
-
-.sc-seg-btn {
-  padding: 6px 12px;
-  border: 0;
-  border-radius: 999px;
-  background-color: transparent;
-  color: rgb(255 255 255 / 0.72);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 140ms ease, color 140ms ease;
-}
-
-.sc-seg-btn.is-active {
-  background-color: #ffffff;
-  color: #0b0e14;
-}
-
-.sc-control-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  font-weight: 600;
-  color: rgb(255 255 255 / 0.72);
-}
-
-/* ---- Daylight Scroll Section (Tests Scroll-Adaptive WCAG AA Polarity!) ---- */
-
-.sc-daylight {
-  background-color: #f4f5f7;
-  color: #0e1015;
-  padding: 72px 24px 80px;
-}
-
-.sc-section-head {
-  max-width: 680px;
-  margin-bottom: 32px;
-}
-
-.sc-section-kicker {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: #5b6374;
-  margin-bottom: 10px;
-}
-
-.sc-section-head h2 {
-  font-size: clamp(1.75rem, 3.4vw, 2.5rem);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  margin-bottom: 12px;
-}
-
-.sc-section-head p {
-  font-size: 15px;
-  line-height: 1.6;
-  color: #4b5263;
-}
-
-.sc-dark-section {
-  background-color: #090c14;
-  color: #f4f6fb;
-  padding: 72px 24px 200px;
-}
-
-.sc-dark-section .sc-section-kicker {
-  color: rgb(255 255 255 / 0.56);
-}
-
-.sc-dark-section .sc-section-head p {
-  color: rgb(244 246 251 / 0.72);
-}
-
-.sc-tier-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 14px;
-  margin-bottom: 44px;
-}
-
-.sc-tier-card {
-  padding: 20px;
-  border-radius: 20px;
-  background-color: rgb(255 255 255 / 0.04);
-  border: 1px solid rgb(255 255 255 / 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.sc-tier-card__tag {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  color: #7dd3fc;
-}
-
-.sc-tier-card h3 {
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.sc-tier-card p {
-  font-size: 13px;
-  line-height: 1.55;
-  color: rgb(244 246 251 / 0.72);
-}
-
-.sc-code-block {
-  border-radius: 20px;
-  padding: 20px 22px;
-  background-color: #0d121d;
-  border: 1px solid rgb(255 255 255 / 0.12);
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  line-height: 1.65;
-  color: #dbeafe;
-  overflow-x: auto;
-  margin-bottom: 36px;
-}
-
-.sc-credits {
-  padding-top: 28px;
-  border-top: 1px solid rgb(255 255 255 / 0.1);
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 16px;
-  font-size: 13px;
-  color: rgb(244 246 251 / 0.68);
-}
-
-.sc-credits a {
-  color: #ffffff;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-/* ---- Floating Chrome Shell (Showcase & Material Lab) ---------------------- */
 
 .lab-chrome-dock {
   position: fixed;
@@ -365,6 +187,9 @@ a {
   bottom: max(24px, env(safe-area-inset-bottom));
   transform: translate3d(-50%, 0, 0);
   z-index: 60;
+  /* At left: 50% the dock would only get half the screen to lay out in. */
+  width: max-content;
+  max-width: calc(100vw - 32px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -390,28 +215,29 @@ a {
 .lab-drag-handle {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
+  justify-content: center;
+  width: 44px;
+  height: 24px;
+  border: 1px solid rgb(255 255 255 / 0.1);
   border-radius: 999px;
-  border: 1px solid rgb(255 255 255 / 0.22);
-  background-color: rgb(14 18 26 / 0.72);
-  color: rgb(255 255 255 / 0.92);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  background-color: rgb(33 33 33 / 0.9);
+  color: rgb(255 255 255 / 0.7);
   cursor: grab;
   touch-action: none;
   pointer-events: auto;
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  transition: color 150ms var(--ease-out), transform 120ms cubic-bezier(0.2, 0, 0, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lab-drag-handle:hover {
+    color: rgb(255 255 255 / 0.95);
+  }
 }
 
 .lab-drag-handle:active {
   cursor: grabbing;
   transform: scale(0.96);
 }
-
-/* ---- Material Lab Backdrops (Zero CSS filter on full-viewport canvas!) ---- */
 
 .lab-plasma {
   position: fixed;
@@ -463,7 +289,6 @@ a {
   display: block;
 }
 
-/* Feed Cards (shared between Showcase Daylight & Lab Feed) */
 .lab-feed {
   max-width: 1080px;
   margin: 0 auto;
@@ -491,24 +316,6 @@ a {
 .lab-scene-bg--split {
   background-color: #090b10;
 }
-
-.lab-spectrum-strip {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  height: 44px;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 8px 24px -10px rgb(0 0 0 / 0.16);
-}
-
-.lab-spectrum-strip span:nth-child(1) { background-color: #ff3b30; }
-.lab-spectrum-strip span:nth-child(2) { background-color: #ff9500; }
-.lab-spectrum-strip span:nth-child(3) { background-color: #ffcc00; }
-.lab-spectrum-strip span:nth-child(4) { background-color: #34c759; }
-.lab-spectrum-strip span:nth-child(5) { background-color: #00c7be; }
-.lab-spectrum-strip span:nth-child(6) { background-color: #007aff; }
-.lab-spectrum-strip span:nth-child(7) { background-color: #5856d6; }
-.lab-spectrum-strip span:nth-child(8) { background-color: #ff2d55; }
 
 .lab-feed__grid {
   display: grid;
@@ -584,23 +391,7 @@ a {
     linear-gradient(140deg, #0f5132 0%, #07221b 100%);
 }
 
-.lab-card__badge {
-  display: inline-block;
-  padding: 4px 9px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  background-color: rgb(0 0 0 / 0.28);
-  color: #ffffff;
-}
-
-.lab-card--mono .lab-card__badge {
-  background-color: #111318;
-  color: #ffffff;
-}
-
-.lab-card__content h3 {
+.lab-card--mono .lab-card__content h3 {
   font-size: 21px;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -620,17 +411,6 @@ a {
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.lab-type-test__row {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #6b7280;
 }
 
 .lab-type-test__display {
@@ -662,7 +442,6 @@ a {
   );
 }
 
-/* Optics Grid */
 .lab-optics-grid {
   padding: 84px 0 200px;
   background-color: #ffffff;
@@ -738,7 +517,6 @@ a {
   max-width: 1080px;
 }
 
-/* Split Polarity */
 .lab-split {
   position: relative;
   display: grid;
@@ -770,9 +548,8 @@ a {
 }
 
 .lab-split__tag {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 13px;
+  font-weight: 500;
   opacity: 0.6;
 }
 
@@ -810,137 +587,156 @@ a {
   opacity: 0.85;
 }
 
-/* ---- Material Lab Compact HUD & Diagnostics Pill -------------------------- */
-
-.lab-hud {
-  position: fixed;
-  top: 14px;
-  left: 14px;
-  z-index: 75;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  max-width: calc(100vw - 320px);
-}
-
-.lab-pill-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 3px;
-  border-radius: 999px;
-  background-color: rgb(14 17 24 / 0.78);
-  border: 1px solid rgb(255 255 255 / 0.14);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-}
-
-.lab-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
-  border: 0;
-  border-radius: 999px;
-  background-color: transparent;
-  color: rgb(255 255 255 / 0.82);
-  font-size: 11.5px;
-  font-weight: 500;
-  cursor: pointer;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
   white-space: nowrap;
-  transition: background-color 140ms ease, color 140ms ease;
+  border: 0;
 }
 
-.lab-chip:hover {
-  background-color: rgb(255 255 255 / 0.12);
-  color: #ffffff;
-}
+/* Same surface, radius and type as DialKit's panel. */
 
-.lab-chip.is-active {
-  background-color: #ffffff;
-  color: #0e1015;
-  font-weight: 600;
-}
+.lab-bar {
+  --lab-surface: rgb(33 33 33);
+  --lab-row: rgb(255 255 255 / 0.05);
+  --lab-row-hover: rgb(255 255 255 / 0.09);
+  --lab-text: rgb(255 255 255 / 0.95);
+  --lab-text-muted: rgb(255 255 255 / 0.5);
+  --lab-line: rgb(255 255 255 / 0.1);
 
-.lab-chip--standalone {
-  background-color: rgb(14 17 24 / 0.78);
-  border: 1px solid rgb(255 255 255 / 0.14);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-  padding: 6px 10px;
-}
-
-.lab-chip--standalone.is-active {
-  background-color: #ffffff;
-  color: #0e1015;
-  border-color: #ffffff;
-}
-
-.lab-diag-pill {
   position: fixed;
-  left: 16px;
-  bottom: 16px;
-  z-index: 75;
+  top: max(16px, env(safe-area-inset-top, 0px));
+  left: max(16px, env(safe-area-inset-left, 0px));
+  z-index: 80;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 14px;
-  border-radius: 16px;
-  background-color: rgb(14 17 24 / 0.82);
-  border: 1px solid rgb(255 255 255 / 0.14);
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
-  color: #f3f5fa;
-  font-size: 11px;
-  max-width: 350px;
-}
-
-.lab-diag-pill__metrics {
-  display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  font-variant-numeric: tabular-nums;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--lab-line);
+  border-radius: 14px;
+  background-color: var(--lab-surface);
+  box-shadow: 0 8px 32px rgb(0 0 0 / 0.5);
+  font-family: var(--font-sans);
 }
 
-.lab-diag-pill__badge {
+.lab-bar__btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background-color: transparent;
+  color: var(--lab-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 150ms var(--ease-out);
+}
+
+.lab-bar__btn svg {
+  color: var(--lab-text-muted);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lab-bar__btn:hover {
+    background-color: var(--lab-row-hover);
+  }
+}
+
+/* Matches DialKit's own shortcut pill */
+.lab-bar__key {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background-color: rgb(255 255 255 / 0.06);
+  color: var(--lab-text-muted);
+  font-size: 10px;
   font-weight: 600;
-  color: #ffffff;
+  line-height: 16px;
+  letter-spacing: 0.02em;
 }
 
-.lab-diag-pill__ok {
-  color: #4ade80;
-  font-weight: 600;
-}
-
-.lab-diag-pill__muted {
-  color: rgb(255 255 255 / 0.62);
-}
-
-.lab-diag-pill__credit {
-  font-size: 11px;
+.lab-credit {
+  position: fixed;
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  left: max(16px, env(safe-area-inset-left, 0px));
+  z-index: 80;
+  margin: 0;
+  padding: 7px 12px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 10px;
+  background-color: rgb(33 33 33);
+  color: rgb(255 255 255 / 0.5);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
   line-height: 1.4;
-  color: rgb(255 255 255 / 0.68);
-  border-top: 1px solid rgb(255 255 255 / 0.08);
-  padding-top: 6px;
 }
 
-.lab-diag-pill__credit a {
-  color: #ffffff;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+.lab-credit a {
+  color: rgb(255 255 255 / 0.85);
+  text-decoration: none;
 }
 
-/* ---- Copy JSX & Props Modal Drawer ---------------------------------------- */
+@media (hover: hover) and (pointer: fine) {
+  .lab-credit a:hover {
+    color: rgb(255 255 255);
+  }
+}
+
+@media (max-width: 820px) {
+  .lab-credit {
+    display: none;
+  }
+}
+
+/* Key hints mean nothing on a touch screen. */
+@media (pointer: coarse) {
+  .lab-bar__key {
+    display: none;
+  }
+}
+
+.lab-credit a:focus-visible,
+.lab-bar :focus-visible,
+.lab-drag-handle:focus-visible,
+.lab-drawer :focus-visible {
+  outline: 2px solid rgb(255 255 255 / 0.9);
+  outline-offset: 2px;
+}
+
+/* Leave a gutter for DialKit's panel so test content never starts under it */
+@media (min-width: 1100px) {
+  .lab-feed {
+    max-width: none;
+    padding-inline: 300px;
+  }
+
+  .lab-split__half--dark {
+    padding-inline-end: 300px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-bar__btn {
+    transition: none;
+  }
+}
 
 .lab-drawer-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 120;
+  /* DialKit's panel sits at 10000. */
+  z-index: 10010;
   background-color: rgb(4 7 12 / 0.56);
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
@@ -955,17 +751,17 @@ a {
   max-height: 82vh;
   display: flex;
   flex-direction: column;
-  border-radius: 22px;
-  background-color: #0e131e;
-  border: 1px solid rgb(255 255 255 / 0.16);
-  color: #f4f6fb;
-  box-shadow: 0 24px 64px -16px rgb(0 0 0 / 0.72);
+  border-radius: 14px;
+  background-color: rgb(33 33 33);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  color: rgb(255 255 255 / 0.95);
+  box-shadow: 0 8px 32px rgb(0 0 0 / 0.5);
+  font-family: var(--font-sans);
   overflow: hidden;
 }
 
 .lab-drawer__head {
   padding: 16px 20px;
-  border-bottom: 1px solid rgb(255 255 255 / 0.1);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -983,51 +779,104 @@ a {
   gap: 8px;
 }
 
+.lab-drawer__btn {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background-color: rgb(255 255 255 / 0.05);
+  color: rgb(255 255 255 / 0.9);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.lab-drawer__btn--primary {
+  min-width: 72px;
+  background-color: rgb(255 255 255);
+  color: rgb(33 33 33);
+}
+
 .lab-drawer__code {
   padding: 18px 20px;
   overflow: auto;
   font-family: var(--font-mono);
   font-size: 12.5px;
   line-height: 1.6;
-  color: #dbeafe;
+  color: rgb(255 255 255 / 0.85);
   white-space: pre;
 }
 
-.lab-drawer__foot {
-  padding: 12px 20px;
-  border-top: 1px solid rgb(255 255 255 / 0.08);
-  font-size: 12px;
-  color: rgb(255 255 255 / 0.65);
-}
-
-.lab-drawer__foot a {
-  color: #ffffff;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.lab-unhide-btn {
-  position: fixed;
-  top: 14px;
-  right: 16px;
-  z-index: 80;
-  padding: 7px 13px;
-  border-radius: 999px;
-  border: 1px solid rgb(255 255 255 / 0.22);
-  background-color: rgb(14 17 24 / 0.72);
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-}
-
 @media (max-width: 820px) {
-  .lab-hud {
-    max-width: calc(100vw - 32px);
-  }
   .lab-split {
     grid-template-columns: 1fr;
   }
+}
+
+/* Copy -> Copied swap: "a" shows at rest, "b" while the parent has .is-copied. */
+
+.pm-swap {
+  display: inline-grid;
+  place-items: center;
+}
+
+.pm-swap > * {
+  grid-area: 1 / 1;
+}
+
+.pm-swap__a,
+.pm-swap__b {
+  --swap-in: 260ms cubic-bezier(0.215, 0.61, 0.355, 1);
+  --swap-out: 160ms cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+
+.pm-swap__a,
+.is-copied .pm-swap__b {
+  opacity: 1;
+  transform: scale(1);
+  filter: blur(0);
+  transition:
+    opacity var(--swap-in),
+    transform var(--swap-in),
+    filter var(--swap-in);
+}
+
+.pm-swap__b,
+.is-copied .pm-swap__a {
+  opacity: 0;
+  transform: scale(0.5);
+  filter: blur(2px);
+  transition:
+    opacity var(--swap-out),
+    transform var(--swap-out),
+    filter var(--swap-out);
+}
+
+/* Labels only fade and blur; scaling text looks wobbly. */
+.pm-swap--text .pm-swap__a,
+.pm-swap--text .pm-swap__b {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pm-swap > .pm-swap__a,
+  .pm-swap > .pm-swap__b {
+    transition: opacity 120ms linear;
+    transform: none;
+    filter: none;
+  }
+}
+
+/* DialKit select menu: separate the rows so the hover and selected fills never touch. */
+.dialkit-select-dropdown {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+}
+
+.dialkit-select-dropdown .dialkit-select-option {
+  min-height: 32px;
+  padding: 6px 10px;
 }

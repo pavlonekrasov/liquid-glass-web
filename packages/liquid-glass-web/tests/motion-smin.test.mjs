@@ -2,9 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  bakePolySminOptics,
+  buildPolySminDisplacementMap,
+  buildPolySminPath,
   GLASS_PHYSICS,
   GLASS_SPRINGS,
   glassDeformationForSize,
+  NEUTRAL,
   polySmin,
   projectMomentum,
   resolveGlassConfig,
@@ -84,6 +88,79 @@ test("GlassContainer polySmin meniscus kisses cleanly at gap = k/2", () => {
   near(polySmin(k / 4, k / 4, k), 0, 1e-6, "exact meniscus kiss at gap = k/2");
   assert.ok(polySmin(1.5, 1.5, k) < -2.0, "3px bridged gap forms thick refracting meniscus");
   assert.equal(polySmin(3, 5, 0), 3, "k=0 collapses to exact hard min");
+
+  const bar = { cx: 177, cy: 31, hw: 177, hh: 31, r: 31 };
+  const orbDetached = { cx: 354 + 14 + 30, cy: 31, hw: 30, hh: 30, r: 30 };
+  const orbFused = { cx: 354 + 3 + 30, cy: 31, hw: 30, hh: 30, r: 30 };
+
+  assert.equal(buildPolySminPath(bar, orbDetached, k), null, "14px gap stays detached");
+  const fused = buildPolySminPath(bar, orbFused, k);
+  assert.ok(fused !== null, "3px gap produces closed polySmin union contour");
+  assert.ok(fused.path.startsWith("M ") && fused.path.endsWith(" Z"), "path is closed");
+  assert.equal(fused.path.includes("NaN"), false, "zero NaN coordinates");
+  assert.ok(fused.saddleDepth > 2.0, "deep liquid meniscus saddle");
+
+  const cfg = resolveGlassConfig({ variant: "regular" });
+  const disp = buildPolySminDisplacementMap(428, 62, bar, orbFused, k, {
+    bezel: cfg.bezel,
+    thickness: cfg.thickness,
+    ior: cfg.ior,
+    profile: cfg.profile,
+    minJacobian: cfg.minJacobian,
+  });
+  assert.ok(disp.dMax > 0, "Snell displacement has positive dMax");
+  const centerIdx = (31 * disp.tile.width + 177) * 4;
+  assert.equal(disp.tile.data[centerIdx], NEUTRAL, "flat bar center R stays exact neutral 128");
+  assert.equal(disp.tile.data[centerIdx + 1], NEUTRAL, "flat bar center G stays exact neutral 128");
+
+  // Physical Fresnel + Beer–Lambert union canvas must light BOTH the bar's top-left AND the orb's top-left
+  const optTile = bakePolySminOptics(428, 62, bar, orbFused, k, {
+    optics: {
+      bezel: cfg.bezel,
+      thickness: cfg.thickness,
+      ior: cfg.ior,
+      profile: cfg.profile,
+      minJacobian: cfg.minJacobian,
+    },
+    lighting: {
+      angleDeg: cfg.lightAngleDeg,
+      lift: cfg.lightLift,
+      exponent: cfg.lightExponent,
+      backBounce: cfg.backBounce,
+      highlight: cfg.highlightColor,
+      shade: cfg.shadeColor,
+    },
+    bodyRgb: { r: 12, g: 16, b: 26 },
+    bodyAlpha: cfg.tintAlpha,
+    rimAlphaMin: cfg.rimAlphaMin,
+    scrimRgb: { r: 12, g: 16, b: 26 },
+    scrimAlpha: 0,
+    edgeRgb: { r: 255, g: 255, b: 255 },
+    edgeAlpha: cfg.edgeRingAlpha,
+    borderWidth: 1,
+    scale: 1,
+  });
+  // Sample actual outer grazing rim pixel (s = 0.5px): bar top is y = 0, orb top is y = 1
+  const orbTopRimIdx = (1 * optTile.width + Math.round(orbFused.cx)) * 4;
+  const barTopRimIdx = (0 * optTile.width + 120) * 4;
+  const barInnerIdx = (4 * optTile.width + 120) * 4;
+  const barMidIdx = (31 * optTile.width + 177) * 4;
+  assert.ok(
+    optTile.data[orbTopRimIdx] > 180 && optTile.data[orbTopRimIdx + 3] > 100,
+    "orb top bezel preserves physical 3D Fresnel specular highlight (never dark/flat)",
+  );
+  assert.ok(
+    optTile.data[barTopRimIdx] > 180 && optTile.data[barTopRimIdx + 3] > 100,
+    "bar top bezel preserves physical 3D Fresnel specular highlight",
+  );
+  assert.ok(
+    optTile.data[barTopRimIdx + 3] > optTile.data[barInnerIdx + 3],
+    "bar top rim decays smoothly inward (zero flat stepped band)",
+  );
+  assert.ok(
+    optTile.data[barMidIdx] < 30 && optTile.data[barMidIdx + 3] > 20,
+    "bar flat interior preserves translucent dark Beer–Lambert plateau",
+  );
 });
 
 test("semantic material variants resolve human-first props cleanly", () => {

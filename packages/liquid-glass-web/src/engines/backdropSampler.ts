@@ -1,9 +1,3 @@
-/* ===========================================================================
-   Live Backdrop Luminance Sampler for Scroll-Adaptive WCAG AA Legibility.
-   Separates 10-point area-weighted `polaritySamples` from worst-case
-   `contrastSamples` while skipping glass chrome and Tier 0 HIC canvases.
-   =========================================================================== */
-
 import type { SRGB } from "../core/color.ts";
 import { clamp01 } from "../core/motion.ts";
 
@@ -62,9 +56,8 @@ function sampleCanvasPixel(c: HTMLCanvasElement, cr: DOMRect, x: number, y: numb
 }
 
 /**
- * Samples live pixels behind a glass surface footprint:
- * - `polaritySamples`: 10 area-weighted point colors driving calm Schmitt-trigger polarity.
- * - `contrastSamples`: includes all gradient stops of overlapped cards for worst-case AA scrim.
+ * Samples pixels behind a surface. `polaritySamples` (10 area-weighted points) pick the
+ * text polarity; `contrastSamples` (including overlapped card gradients) size the scrim.
  */
 export function sampleBackdropBehind(
   surfaceEl: HTMLElement,
@@ -90,7 +83,9 @@ export function sampleBackdropBehind(
   );
   const canvasRects = canvases.map((c) => ({ el: c, rect: c.getBoundingClientRect() }));
 
-  const scrollContainer = document.querySelector<HTMLElement>('[data-lgw-scroll-container="true"]');
+  const scrollContainer =
+    surfaceEl.closest(".lgw-stage")?.querySelector<HTMLElement>('[data-lgw-scroll-container="true"]') ??
+    document.querySelector<HTMLElement>('[data-lgw-scroll-container="true"]');
   const sceneSampleNodes = scrollContainer
     ? Array.from(
         scrollContainer.querySelectorAll<HTMLElement>(

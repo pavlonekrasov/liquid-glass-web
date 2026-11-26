@@ -1,8 +1,3 @@
-/* ===========================================================================
-   Color Math — WCAG 2.1 relative luminance, contrast ratio, sRGB <-> linear,
-   OKLCH perceptual conversions, and hex parsing. Zero DOM.
-   =========================================================================== */
-
 export type SRGB = readonly [number, number, number];
 export type RgbColor = { readonly r: number; readonly g: number; readonly b: number };
 export type OKLCH = readonly [lightness: number, chroma: number, hue: number];

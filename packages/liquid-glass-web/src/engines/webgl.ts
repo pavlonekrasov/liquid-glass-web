@@ -1,7 +1,3 @@
-/* ===========================================================================
-   WebGL2 Shader & Texture Helpers for Tier 0 HTML-in-Canvas Engine.
-   =========================================================================== */
-
 function submitProgram(gl: WebGL2RenderingContext, vs: string, fs: string) {
   const shaders: WebGLShader[] = [];
   const make = (type: number, src: string) => {

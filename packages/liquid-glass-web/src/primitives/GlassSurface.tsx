@@ -20,18 +20,14 @@ export interface GlassSurfaceProps
   extends GlassMaterialProps,
     Omit<HTMLAttributes<HTMLDivElement>, "children"> {
   children?: ReactNode;
-  /** Applies the stage's scroll-adaptive WCAG AA scrim inside this surface (default true). */
+  /** Applies the stage's legibility scrim to this surface (default true). */
   applyScrim?: boolean;
   /** Corner radius in CSS px or CSS length (default "999px" capsule). */
   radius?: number | string;
   onDiagnostics?: (diag: LiquidGlassDiagnostics | null) => void;
 }
 
-/**
- * General-purpose Liquid Glass surface primitive supporting all 4 tiers,
- * GlassContainer smooth-min liquid fusion, Beer–Lambert body absorption,
- * 3D bezel-normal dual-bounce Fresnel, and .interactive() touch illumination.
- */
+/** Glass surface primitive. Works on every tier and merges inside GlassContainer. */
 export function GlassSurface({
   children,
   variant,
@@ -61,7 +57,7 @@ export function GlassSurface({
   const elRef = useRef<HTMLDivElement>(null);
   const localSvgRef = useRef<SVGSVGElement>(null);
 
-  const hasStageSvg = stage.svgHostRef.current !== null;
+  const { hasStageSvg } = stage;
   const svgRef = hasStageSvg ? stage.svgHostRef : localSvgRef;
 
   const config = useMemo(
@@ -147,6 +143,19 @@ export function GlassSurface({
     stage.hicBridge,
     surfaceId,
   ]);
+
+  const { registerUnionElement, notifyUnionMove } = container;
+
+  useEffect(() => {
+    if (useHic || frostOnly || container.mergeRadius <= 0) return;
+    const key = `surface-${surfaceId}`;
+    registerUnionElement(key, elRef.current);
+    const raf = requestAnimationFrame(() => notifyUnionMove());
+    return () => {
+      cancelAnimationFrame(raf);
+      registerUnionElement(key, null);
+    };
+  }, [useHic, frostOnly, container.mergeRadius, surfaceId, registerUnionElement, notifyUnionMove]);
 
   useEffect(() => {
     if (!stage.hicBridge) return;

@@ -1,17 +1,6 @@
-/* ===========================================================================
-   Seam-Free Liquid Glass Overlays — paints Beer–Lambert tint (::before) and
-   dual-bounce Fresnel rim lighting (::after) with zero hairlines at any DPR
-   (1x, 1.25x, 1.5x, 1.75x, 2x, 3x). Pure math + SVG string generation, no DOM.
-
-   Every piece is opaque and painted in an order where each piece's inner edge
-   lands on a value equal to its own:
-     1. face over the whole box;
-     2. full-width top and bottom bands;
-     3. full-height side bands ending >= SEAM_MARGIN inside the corners;
-     4. four corners continuing the bands they meet.
-   Alpha fields are encoded as grey luminance masks (CSS mask-image on WebKit /
-   Firefox, SVG <mask> via -webkit-mask-box-image on Chromium).
-   =========================================================================== */
+/* Overlay sheets are cut into opaque pieces, painted so each piece's inner edge lands
+   on a matching value. That keeps seams invisible at any DPR. Order: face, top and
+   bottom bands, side bands (ending SEAM_MARGIN inside the corners), corners. */
 
 import type { RgbColor } from "./color.ts";
 

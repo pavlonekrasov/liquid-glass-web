@@ -1,10 +1,5 @@
-/* ===========================================================================
-   4-Tier Engine Capability Detection & Automatic Progressive Enhancement
-     Tier 0: html-in-canvas (Chrome 157+ <canvas content="drawable"> WebGL2)
-     Tier 1: svg-backdrop   (Chromium backdrop-filter: url(#...))
-     Tier 2: svg-content    (Safari / Firefox Aave filter: url(#...) content-path)
-     Tier 3: frost          (Reduced-transparency / high-contrast / forced-colors DOM)
-   =========================================================================== */
+/* Tier 0 html-in-canvas (Chrome 157+), 1 svg-backdrop (Chromium), 2 svg-content
+   (Safari, Firefox), 3 frost (reduced transparency, high contrast, forced colors). */
 
 import type { GlassEnginePreference } from "../core/presets.ts";
 
@@ -19,14 +14,11 @@ export interface GlassCapabilities {
   readonly forcedColors: boolean;
 }
 
-/**
- * Inline pre-hydration script string for SSR apps (<head>) to stamp [data-lg-refract]
- * before first paint on Chromium engines so Tier 1 masks never flash during hydration.
- */
+/** Inline <head> script for SSR. Stamps [data-lg-refract] before first paint so Tier 1 masks don't flash. */
 export const CHROMIUM_REFRACT_INIT_SCRIPT =
   "if(typeof navigator!=='undefined'&&navigator.userAgentData)document.documentElement.setAttribute('data-lg-refract','')";
 
-/** Feature-detects native Chrome 157+ HTML-in-Canvas + WebGL2 texture upload support. */
+/** Detects HTML-in-Canvas with WebGL2 element uploads (Chrome 157+). */
 export function supportsHtmlInCanvasWebGL(): boolean {
   if (typeof window === "undefined" || typeof HTMLCanvasElement === "undefined") return false;
   if (typeof WebGL2RenderingContext === "undefined") return false;
@@ -74,7 +66,7 @@ export function readGlassCapabilities(): GlassCapabilities {
   };
 }
 
-/** Resolves the active optical tier given user preference, browser capabilities, and a11y flags. */
+/** Picks the tier from preference, browser support and accessibility settings. */
 export function resolveEngineTier(
   preference: GlassEnginePreference,
   capabilities: GlassCapabilities,
@@ -95,7 +87,6 @@ export function resolveEngineTier(
     return canBackdrop ? "svg-backdrop" : "svg-content";
   }
 
-  // "auto" — progressive enhancement Tier 0 -> Tier 1 -> Tier 2
   if (canHic) return "html-in-canvas";
   if (canBackdrop) return "svg-backdrop";
   return "svg-content";

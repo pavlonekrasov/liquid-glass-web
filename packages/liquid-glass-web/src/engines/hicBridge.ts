@@ -1,9 +1,4 @@
-/* ===========================================================================
-   Tier 0 HTML-in-Canvas Generic GlassNode Registry — frame-locked mutable bus
-   connecting any Liquid Glass component (TabBar, Orb, Switch, Slider, Button,
-   Surface) to the WebGL2 Float32 engine with zero React re-renders during
-   60/120fps spring frames.
-   =========================================================================== */
+/* Mutable registry the Tier 0 renderer reads every frame, so animating components don't re-render React. */
 
 import { MAX_HIC_LOUPES, MAX_HIC_SURFACES } from "../core/hicShaders.ts";
 
@@ -19,28 +14,28 @@ export interface HicGlassSurfaceNode {
   readonly w: number;
   readonly h: number;
   readonly radius: number;
-  /** GlassContainer morphGroup (0 = isolated, 1..3 = fuses via polySmin). */
+  /** GlassContainer group (0 = none, 1..3 = merges with the group). */
   readonly morphGroup?: number;
-  /** Smooth-min liquid meniscus radius in CSS px. */
+  /** Merge radius in px. */
   readonly mergeK?: number;
-  /** Whether this surface receives the scroll-adaptive WCAG AA scrim. */
+  /** Whether the surface gets the legibility scrim. */
   readonly applyScrim?: boolean;
-  /** Optional nested resting selection pill (TabBar). */
+  /** Resting selection pill (tab bar). */
   readonly pillCx?: number;
   readonly pillCy?: number;
   readonly pillW?: number;
   readonly pillH?: number;
   readonly pillAlpha?: number;
-  /** Optional normalized progress fill [0, 1] for switch/slider tracks. */
+  /** Track fill (0..1) for switches and sliders. */
   readonly fill?: number;
-  /** Optional resting opaque white pill thumb (switch / slider). */
+  /** Resting thumb (switch, slider). */
   readonly knobCx?: number;
   readonly knobW?: number;
   readonly knobH?: number;
   readonly knobScaleX?: number;
   readonly knobScaleY?: number;
   readonly knobAlpha?: number;
-  /** .interactive() touch-point specular illumination in viewport CSS px. */
+  /** Touch highlight position in viewport px. */
   readonly touchX?: number;
   readonly touchY?: number;
   readonly touchGlow?: number;

@@ -1,12 +1,9 @@
-// liquid-glass-web — Headless installed-Chrome multi-DPR optical & perf harness
+// Headless Chrome checks across DPRs. Run with CHANNEL=chrome so installed Chrome
+// renders backdrop-filter: url(#...), and Tier 0 on Chrome 157+.
 //
 // Usage:
 //   CHANNEL=chrome node scripts/verify-visuals.mjs
 //   BASE_URL=http://127.0.0.1:3000 CHANNEL=chrome node scripts/verify-visuals.mjs
-//
-// Headless only (never opens a visible Chrome window). Always run with
-// CHANNEL=chrome so installed Chrome renders backdrop-filter: url(#...) at
-// 1x, 1.25x, 1.5x, and 2x DPR (and Tier 0 HTML-in-Canvas on Chrome 157+).
 
 import { chromium } from "playwright";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -161,7 +158,7 @@ try {
   });
   page.on("pageerror", (e) => report.errors.push(String(e)));
 
-  /* ---- 1. Editorial Showcase Landing (/) ---------------------------------- */
+  // 1. Landing page
   await page.goto(`${base}/`, { waitUntil: "networkidle" });
   await sleep(900);
   report.showcase = await page.evaluate(() => {
@@ -178,7 +175,7 @@ try {
   await page.screenshot({ path: path.join(out, "00-showcase-landing-2x.png") });
   report.shots.push("00-showcase-landing-2x.png");
 
-  /* ---- 2. Material Lab (/lab) — DialKit, Attribution & Tier 0 smin -------- */
+  // 2. Lab: DialKit, credit, Tier 0 merge
   await page.goto(`${base}/lab?paused=1`, { waitUntil: "networkidle" });
   await sleep(1000);
 
@@ -194,27 +191,27 @@ try {
   await page.screenshot({ path: path.join(out, "01-lab-dialkit-2x.png") });
   report.shots.push("01-lab-dialkit-2x.png");
 
-  // Verify DialKit Copy JSX & Props action button opens drawer with live JSX + Josh Puckett credit
-  await page.locator("button.dialkit-button", { hasText: "Copy JSX & Props" }).click();
+  // Export code opens the dialog with the generated code
+  await page.locator(".dialkit-panel button", { hasText: "Export code" }).click();
   await sleep(200);
   report.dialkitAttribution.exportDrawerWorks = await page.evaluate(() => {
     const dialog = document.querySelector('[role="dialog"]');
     if (!dialog) return false;
     const text = dialog.textContent ?? "";
-    return text.includes("<GlassStage") && text.includes("Josh Puckett");
+    return text.includes("<GlassStage");
   });
   await page.getByRole("button", { name: "Close" }).click();
   await sleep(150);
 
-  // Tier 0 HTML-in-Canvas WebGL2 parked loupe + fused Search Orb smin meniscus check
+  // Tier 0: parked loupe and merged orb
   const activeLabEngine = await page.evaluate(
     () => document.querySelector("[data-lab-engine]")?.getAttribute("data-lab-engine") ?? null,
   );
   await page.keyboard.press("p"); // park loupe
   await sleep(450);
-  await page.keyboard.press("m"); // fuse Search Orb via smin meniscus
+  await page.keyboard.press("m"); // merge the orb
   await sleep(600);
-  await page.keyboard.press("h"); // hide HUD + DialKit
+  await page.keyboard.press("h"); // hide the controls
   await sleep(250);
 
   const tier0Rect = await page.evaluate(() => {
@@ -236,7 +233,7 @@ try {
     report.shots.push("02-tier0-hic-smin-2x.png");
   }
 
-  // Saddle-point pinch check on the fused meniscus neck between bar right edge & orb left edge
+  // Check the neck between bar and orb for a pinch
   const saddleMetrics = await page.evaluate(async () => {
     const bar = document.querySelector(".lgw-tabbar")?.getBoundingClientRect();
     const orb = document.querySelector(".lgw-orb")?.getBoundingClientRect();
@@ -259,7 +256,7 @@ try {
       },
     });
     const { width, height, rgba } = await readPixels(page, neckBuf);
-    // Measure max local bright/dark impulse spike at the exact saddle center vs its 4px ring
+    // Largest bright/dark spike at the saddle center vs a 4px ring around it
     const cx = Math.floor(width / 2);
     const cy = Math.floor(height / 2);
     const lumaAt = (x, y) => {
@@ -287,7 +284,7 @@ try {
     saddleCenterDeltaLuma: saddlePinchScore,
   };
 
-  /* ---- 3. Tier 1 Chromium SVG Backdrop Probes (/lab?engine=svg-backdrop) -- */
+  // 3. Tier 1 probes (/lab?engine=svg-backdrop)
   await page.goto(`${base}/lab?engine=svg-backdrop&paused=1&parked=1`, {
     waitUntil: "networkidle",
   });
@@ -345,7 +342,7 @@ try {
   });
 
   if (loupeBox) {
-    // Neutral sheet behind floating chrome for outer-edge & center purity probes
+    // Neutral sheet behind the chrome for edge and center probes
     await page.evaluate(() => {
       const sheet = document.createElement("div");
       sheet.id = "diag-neutral-bg";
@@ -391,7 +388,7 @@ try {
       passThreshold: 18,
     };
 
-    // Center text purity (strictly inside s >= bezel=16 interior vs scale=0)
+    // Text inside the flat interior is undistorted
     const centerClip = {
       x: Math.round(loupeBox.x + 22),
       y: Math.round(loupeBox.y + 18),
@@ -423,7 +420,7 @@ try {
     await sleep(160);
     report.tier1.centerTextPurity = await pixelDiff(page, centerFull, centerFlat);
 
-    // White (#ffffff) and mid-grey (#808080) accuracy inside loupe center
+    // White and mid-grey stay accurate inside the loupe
     const checkFlatColor = async (hex, expectedRgb) => {
       await page.evaluate((color) => {
         const bg = document.getElementById("diag-neutral-bg");
@@ -471,7 +468,7 @@ try {
       midGrey: await checkFlatColor("#808080", [128, 128, 128]),
     };
 
-    // Ruler refraction bow, straight-run shear, and fold-free sliver probe
+    // Ruler bend, straight-run shear and fold check
     const measureRulerBow = async (selector, ruleOffsetY, sampleFracX, shearFracX, hideBar = false) => {
       const info = await page.evaluate(
         ({ sel, off, sfx, hide }) => {
@@ -605,7 +602,7 @@ try {
     await sleep(150);
   }
 
-  // Unpark & capture resting plasma + verify 0 gesture bakes
+  // Unpark, capture the resting plasma, and confirm no bakes during gestures
   await page.keyboard.press("p");
   await sleep(450);
   const shotPlasmaResting = await cropWrap("04-tier1-plasma-resting-2x.png");
@@ -639,7 +636,7 @@ try {
   }
   report.tier1.gestureBakes = await page.evaluate(() => window.__lgwBakeCalls ?? -1);
 
-  /* ---- 4. Tier 1 Tab-Switch Frame Performance (Live Plasma Running!) ------ */
+  // 4. Tier 1 tab-switch frame timing with the plasma running
   await page.goto(`${base}/lab?engine=svg-backdrop`, { waitUntil: "networkidle" });
   await sleep(700);
   report.tier1.tabSwitchPerf = await page.evaluate(
@@ -678,7 +675,7 @@ try {
       }),
   );
 
-  /* ---- 5. Daylight Feed WCAG AA >= 4.5:1 & Bar/Orb Tint Parity ------------ */
+  // 5. Daylight feed contrast (>= 4.5:1) and bar/orb tint parity
   await page.goto(`${base}/lab?engine=svg-backdrop&backdrop=feed&variant=tinted`, {
     waitUntil: "networkidle",
   });
@@ -703,7 +700,7 @@ try {
   await sleep(220);
   const shotDaylightFeed = await cropWrap("05-daylight-feed-2x.png");
 
-  /* ---- 6. Tier 2 Aave Content-Path + Optics Grid -------------------------- */
+  // 6. Tier 2 and the optics grid
   await page.goto(`${base}/lab?engine=svg-content&backdrop=ribbon&parked=1`, {
     waitUntil: "networkidle",
   });
@@ -754,7 +751,7 @@ try {
   report.shots.push("contact-sheet.png");
   await ctx.close();
 
-  /* ---- 7. Fractional DPR Fresnel Luminance Rows (1x, 1.25x, 1.5x, 2x) ----- */
+  // 7. Fresnel luminance rows at 1x, 1.25x, 1.5x, 2x
   for (const dpr of [1, 1.25, 1.5, 2]) {
     const fCtx = await browser.newContext({
       viewport: { width: 1280, height: 800 },

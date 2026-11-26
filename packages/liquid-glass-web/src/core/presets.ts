@@ -1,10 +1,3 @@
-/* ===========================================================================
-   Semantic Material Presets & Config Resolver (zero DOM).
-   Maps everyday human-first props (`variant`, `shapeProfile`, `refraction`,
-   `dispersion`, `frost`, `interactive`, `adaptiveContrast`) onto validated
-   physical Liquid Glass parameters while keeping an `optics` escape hatch.
-   =========================================================================== */
-
 import { hexToRgb, type RgbColor } from "./color.ts";
 import type { LegibilityPolarity } from "./legibility.ts";
 import { BK7, type GlassShapeProfile, type Srgba } from "./optics.ts";
@@ -18,7 +11,7 @@ export type GlassEnginePreference =
   | "frost";
 export type GlassActivePillStyle = "refracting-loupe" | "tint" | "ink";
 
-/** Advanced optical escape hatch for custom art direction (never required for everyday usage). */
+/** Raw optical overrides for art direction. */
 export interface GlassOpticsOverride {
   readonly bezel?: number;
   readonly thickness?: number;
@@ -48,29 +41,29 @@ export interface GlassOpticsOverride {
   readonly pressCompression?: boolean;
 }
 
-/** Human-first semantic props shared across <GlassStage>, <GlassSurface>, and components. */
+/** Material props shared by <GlassStage>, <GlassSurface> and the components. */
 export interface GlassMaterialProps {
-  /** Material weight preset: "regular" (balanced), "clear" (crystal), "tinted" (high-legibility frost). */
+  /** "regular" (balanced), "clear", or "tinted" (more frost, easier to read). */
   readonly variant?: GlassVariant;
-  /** Bezel cross-section curvature: "circle" (natively fold-free), "c2squircle", or "squircle". */
+  /** Bezel curve: "circle", "c2squircle", or "squircle". */
   readonly shapeProfile?: GlassShapeProfile;
-  /** Physical Snell refraction scale multiplier (0..1.3, default 1.0 = exact N-BK7). */
+  /** Refraction strength (0..1.3, default 1.0). */
   readonly refraction?: number;
-  /** Lifted-loupe spectral dispersion strength (0..1, default 0.62 -> ~1.12 px prism spread). */
+  /** Dispersion strength (0..1, default 0.62). */
   readonly dispersion?: number;
-  /** Optical backdrop frost radius in CSS px (0..16). */
+  /** Backdrop blur radius in px (0..16). */
   readonly frost?: number;
-  /** Enables .interactive() touch-point rim illumination, press compression, and velocity stretch. */
+  /** Touch highlight, press compression and drag stretch. */
   readonly interactive?: boolean;
-  /** Enables live scroll-adaptive >= 4.5:1 WCAG AA foreground polarity & seamless capsule scrim. */
+  /** Flips text color and adds a scrim to keep 4.5:1 contrast over moving content. */
   readonly adaptiveContrast?: boolean;
-  /** Optional rendering engine override (defaults to automatic Tier 0 -> 1 -> 2 -> 3 selection). */
+  /** Forces a rendering engine (picked automatically by default). */
   readonly engine?: GlassEnginePreference;
   /** Optional advanced optical overrides for custom art direction. */
   readonly optics?: GlassOpticsOverride;
 }
 
-/** Complete resolved physical material configuration consumed by all 4 tiers. */
+/** Fully resolved material config used by every tier. */
 export interface ResolvedGlassConfig {
   readonly variant: GlassVariant;
   readonly profile: GlassShapeProfile;
@@ -116,7 +109,7 @@ export interface ResolvedGlassConfig {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-/** Validated baseline material configurations for each semantic variant (all strictly h(0)=0 & fold-free). */
+/** Base config for each variant. */
 export const GLASS_VARIANTS: Readonly<Record<GlassVariant, ResolvedGlassConfig>> = {
   regular: {
     variant: "regular",
@@ -230,7 +223,7 @@ export const GLASS_VARIANTS: Readonly<Record<GlassVariant, ResolvedGlassConfig>>
 
 export const DEFAULT_GLASS_CONFIG: ResolvedGlassConfig = GLASS_VARIANTS.regular;
 
-/** Resolves semantic GlassMaterialProps + optional optics overrides into a validated physical config. */
+/** Resolves material props and optics overrides into a full config. */
 export function resolveGlassConfig(
   props?: GlassMaterialProps,
   base?: ResolvedGlassConfig,

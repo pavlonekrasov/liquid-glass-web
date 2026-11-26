@@ -11,6 +11,7 @@ export interface GlassStageContextValue {
   readonly capabilities: GlassCapabilities;
   readonly config: ResolvedGlassConfig;
   readonly svgHostRef: RefObject<SVGSVGElement | null>;
+  readonly hasStageSvg: boolean;
   readonly hicBridge: HicGlassBridge | null;
   readonly reducedMotion: boolean;
   readonly legibility: AdaptiveLegibilityResult | null;
@@ -38,6 +39,7 @@ export const GlassStageContext = createContext<GlassStageContextValue>({
   capabilities: DEFAULT_CAPABILITIES,
   config: DEFAULT_GLASS_CONFIG,
   svgHostRef: FALLBACK_SVG_REF,
+  hasStageSvg: false,
   hicBridge: null,
   reducedMotion: false,
   legibility: null,
@@ -53,12 +55,16 @@ export interface GlassContainerContextValue {
   readonly id: string | null;
   readonly morphGroup: number;
   readonly mergeRadius: number;
+  readonly registerUnionElement: (key: string, el: HTMLElement | null) => void;
+  readonly notifyUnionMove: () => void;
 }
 
 export const GlassContainerContext = createContext<GlassContainerContextValue>({
   id: null,
   morphGroup: 0,
   mergeRadius: 0,
+  registerUnionElement: () => {},
+  notifyUnionMove: () => {},
 });
 
 export function useGlassStage(): GlassStageContextValue {

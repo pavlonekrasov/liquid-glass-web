@@ -1,13 +1,5 @@
-/* ===========================================================================
-   Apple HIG Liquid Glass Motion & Physics Engine (pure math, zero DOM).
-   Encodes SwiftUI Spring(duration:bounce:) converted analytically into
-   { type: "spring", stiffness, damping, mass: 1 }.
-
-   CRITICAL MOTION/REACT RULE:
-   Never emit `duration` or `bounce` keys on the returned spring object!
-   motion/react interprets `duration` as total settling time, ignores
-   stiffness/damping, and collapses springs into an instant ~50 ms snap.
-   =========================================================================== */
+/* Springs are returned as { stiffness, damping, mass } with no `duration` or `bounce`
+   key: motion treats `duration` as the total time and ignores stiffness and damping. */
 
 export interface GlassSpringConfig {
   readonly type: "spring";
@@ -17,15 +9,15 @@ export interface GlassSpringConfig {
 }
 
 export interface GlassDeformationProfile {
-  /** Tactile active press compression scale (e.g. 0.945 for small thumb, 0.988 for wide bar). */
+  /** Scale while pressed (e.g. 0.945 for a small thumb, 0.988 for a wide bar). */
   readonly pressScale: number;
-  /** Maximum travel-axis stretch ratio (always strictly < 0.10 restraint ceiling). */
+  /** Maximum stretch along the travel axis (kept below 0.10). */
   readonly maxVelocityStretch: number;
   /** Cross-axis volume conservation ratio (stretchY = 1 - stretch * crossAxisRatio). */
   readonly crossAxisRatio: number;
-  /** Snell optical thickness compression gain on press (1.0 when disabled). */
+  /** Refraction gain while pressed (1.0 when disabled). */
   readonly pressOpticalGain: number;
-  /** Gaussian radius (CSS px) of internal .interactive() touch illumination bloom. */
+  /** Blur radius in px of the touch highlight. */
   readonly touchGlowRadius: number;
 }
 
@@ -40,11 +32,7 @@ export function smoothstep(edge0: number, edge1: number, x: number): number {
   return t * t * (3 - 2 * t);
 }
 
-/**
- * Converts Apple SwiftUI Spring(duration:bounce:) perceptual response period
- * into exact physical damped harmonic oscillator parameters { stiffness, damping, mass: 1 }.
- * Intentionally omits `duration` and `bounce` keys so motion/react honors physical springs.
- */
+/** Converts SwiftUI's Spring(duration:bounce:) into stiffness and damping with mass 1. */
 export function springFromDurationBounce(responseSec: number, bounce = 0): GlassSpringConfig {
   const response = Math.max(0.08, Math.min(1.5, responseSec));
   const clampedBounce = Math.max(-0.35, Math.min(0.45, bounce));
@@ -70,23 +58,22 @@ export function springDampingRatio(spring: {
   return spring.damping / (2 * Math.sqrt(spring.stiffness * m));
 }
 
-/** Semantic Apple HIG Liquid Glass spring presets (200-480 ms fluid settle). */
+/** Spring presets (settle in roughly 200 to 480 ms). */
 export const GLASS_SPRINGS = {
-  /** Press compression, hover release, and touch bloom (response 0.22s, critically damped). */
+  /** Press, hover release and touch highlight (response 0.22s, critically damped). */
   micro: springFromDurationBounce(0.22, 0.0),
-  /** Critically damped tap switches, UISwitch toggles, and slider detents (response 0.36s, zeta = 1.0). */
+  /** Taps, switch toggles and slider detents (response 0.36s, critically damped). */
   snappy: springFromDurationBounce(0.36, 0.0),
-  /** Gesture-driven drag release with momentum handoff (response 0.42s, earned bounce 0.14). */
+  /** Drag release with momentum (response 0.42s, bounce 0.14). */
   interactive: springFromDurationBounce(0.42, 0.14),
-  /** Elastic loupe surface-tension lift swelling on press/scrub (response 0.34s, bounce 0.18). */
+  /** Loupe lift on press or scrub (response 0.34s, bounce 0.18). */
   loupeLift: springFromDurationBounce(0.34, 0.18),
-  /** Decisive contraction settling lifted loupe cleanly to rest (response 0.38s, bounce 0.08). */
+  /** Loupe settling back to rest (response 0.38s, bounce 0.08). */
   loupeSettle: springFromDurationBounce(0.38, 0.08),
-  /** GlassEffectContainer liquid smin meniscus fusion & separation (response 0.48s, bounce 0.10). */
+  /** Merging and separating inside a GlassContainer (response 0.48s, bounce 0.10). */
   morph: springFromDurationBounce(0.48, 0.1),
 } as const;
 
-/** Apple Fluid Interfaces physical gesture constants. */
 export const GLASS_PHYSICS = {
   rubberbandCoeff: 0.36,
   tabRubberbandDim: 10,
@@ -97,10 +84,7 @@ export const GLASS_PHYSICS = {
   sminMergeRadiusPx: 22,
 } as const;
 
-/**
- * Size-proportional liquid deformation matching WWDC 2025 Liquid Glass:
- * smaller thumbs flex more visibly while wide bars remain composed (< 10% ceiling).
- */
+/** Stretch scaled by size: small thumbs flex more, wide bars stay steady (under 10%). */
 export function glassDeformationForSize(
   widthPx: number,
   heightPx: number,
@@ -119,7 +103,7 @@ export function glassDeformationForSize(
   };
 }
 
-/** Apple Fluid Interfaces hyperbolic rubber-banding past drag boundaries. */
+/** Rubber-banding past the drag bounds. */
 export function rubberband(
   overshootPx: number,
   dimensionPx: number = GLASS_PHYSICS.tabRubberbandDim,
@@ -131,7 +115,7 @@ export function rubberband(
   return (sign * (mag * dimensionPx * coeff)) / (dimensionPx + coeff * mag);
 }
 
-/** Apple Fluid Interfaces exponential momentum projection (CSS px). */
+/** Projected momentum distance in px. */
 export function projectMomentum(
   velocityPxPerSec: number,
   decelerationRate: number = GLASS_PHYSICS.flickDeceleration,
@@ -146,17 +130,14 @@ export function velocityStretch(velocityPxPerMs: number, maxStretch: number): nu
   return maxStretch * Math.tanh(Math.abs(velocityPxPerMs) * 0.72);
 }
 
-/**
- * Progress-coupled bell arc for transient tap/toggle loupe flights:
- * 0 at start (p = 0) and arrival (p = 1), peaking at 1.0 mid-flight (p = 0.5).
- */
+/** Bell curve over flight progress: 0 at both ends, 1 at the midpoint. */
 export function tapFlightBell(progress: number, exponent = 0.85): number {
   const p = clamp01(progress);
   if (p <= 0 || p >= 1) return 0;
   return Math.pow(Math.sin(Math.PI * p), exponent);
 }
 
-/** Resolves spatial motion policy respecting prefers-reduced-motion and keyboard clarity. */
+/** Motion policy for prefers-reduced-motion and keyboard input. */
 export function resolveGlassTransitionMode(
   source: InteractionSource,
   reducedMotion: boolean,

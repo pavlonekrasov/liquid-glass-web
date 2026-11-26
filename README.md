@@ -17,9 +17,18 @@
 ## Quick Start
 
 ```bash
-npm install @pavlonekrasov/liquid-glass-web motion
+npm install @pavlonekrasov/liquid-glass-web
 # or
-pnpm add @pavlonekrasov/liquid-glass-web motion
+pnpm add @pavlonekrasov/liquid-glass-web
+```
+
+Spring animations use [Motion](https://motion.dev), a peer dependency. npm 7+, pnpm 8+ and bun
+install it for you; with Yarn, run `yarn add motion` as well.
+
+To teach your coding agent the API, add the Agent Skill:
+
+```bash
+npx skills add pavlonekrasov/liquid-glass-web
 ```
 
 ```tsx

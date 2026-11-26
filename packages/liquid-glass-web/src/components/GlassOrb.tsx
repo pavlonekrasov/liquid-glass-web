@@ -23,21 +23,17 @@ export interface GlassOrbProps
   extends GlassMaterialProps,
     Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> {
   children?: ReactNode;
-  /** Pulls the orb into sibling GlassTabBar/GlassSurface for smin liquid meniscus fusion. */
+  /** Merges the orb with sibling surfaces inside a GlassContainer. */
   merged?: boolean;
-  /** Horizontal offset (px) when merged in Tier 0 WebGL2 (default -11 closes 14px gap to 3px). */
+  /** Horizontal offset in px when merged on Tier 0 (default -11). */
   mergeOffsetPx?: number;
-  /** Diameter preset: sm (52px), md (56px), lg (60px, default matching compact TabBar). */
+  /** Diameter: sm 52px, md 56px, lg 60px (default, matches the compact tab bar). */
   size?: GlassOrbSize;
 }
 
 const ORB_SIZES: Record<GlassOrbSize, number> = { sm: 52, md: 56, lg: 60 };
 
-/**
- * Circular Liquid Glass action button (e.g. Search / Compose orb) that fuses via
- * polynomial smooth-min (`smin`) with sibling surfaces inside `<GlassContainer>`
- * and maintains 100% adaptive tint & polarity parity over daylight and dark feeds.
- */
+/** Circular action button that can merge with sibling surfaces inside <GlassContainer>. */
 export function GlassOrb({
   children,
   merged = false,
@@ -68,7 +64,7 @@ export function GlassOrb({
   const localSvgRef = useRef<SVGSVGElement>(null);
   const [pressed, setPressed] = useState(false);
 
-  const hasStageSvg = stage.svgHostRef.current !== null;
+  const { hasStageSvg } = stage;
   const svgRef = hasStageSvg ? stage.svgHostRef : localSvgRef;
 
   const config = useMemo(
@@ -116,7 +112,7 @@ export function GlassOrb({
   });
 
   const live = useRef({
-    offsetX: merged ? (useHic ? mergeOffsetPx : Math.round(mergeOffsetPx * 0.55)) : 0,
+    offsetX: merged ? mergeOffsetPx : 0,
     scale: 1,
     touchX: 0,
     touchY: 0,
@@ -125,6 +121,8 @@ export function GlassOrb({
   const animsRef = useRef<AnimationPlaybackControls[]>([]);
   const glowAnimRef = useRef<AnimationPlaybackControls | null>(null);
 
+  const { registerUnionElement, notifyUnionMove } = container;
+
   const paintOrb = useCallback(
     (syncChrome = false) => {
       const btn = btnRef.current;
@@ -132,7 +130,11 @@ export function GlassOrb({
       if (btn) {
         btn.style.transform = `translate3d(${offsetX.toFixed(2)}px, 0, 0) scale(${scale.toFixed(4)})`;
       }
-      if (!stage.hicBridge || !btn) return;
+      if (!stage.hicBridge) {
+        notifyUnionMove();
+        return;
+      }
+      if (!btn) return;
       const r = btn.getBoundingClientRect();
       if (r.width <= 4 || r.height <= 4) {
         stage.hicBridge.removeSurface(`orb-${orbId}`);
@@ -162,6 +164,7 @@ export function GlassOrb({
       container.mergeRadius,
       container.morphGroup,
       deform.touchGlowRadius,
+      notifyUnionMove,
       orbId,
       stage.hicBridge,
     ],
@@ -191,7 +194,7 @@ export function GlassOrb({
     for (const c of animsRef.current) c.stop();
     animsRef.current = [];
 
-    const targetOffset = merged ? (useHic ? mergeOffsetPx : Math.round(mergeOffsetPx * 0.55)) : 0;
+    const targetOffset = merged ? mergeOffsetPx : 0;
     const targetScale = pressed && config.interactive ? deform.pressScale : 1;
 
     if (stage.reducedMotion) {
@@ -227,6 +230,17 @@ export function GlassOrb({
     useHic,
     paintOrb,
   ]);
+
+  useEffect(() => {
+    if (useHic || frostOnly || container.mergeRadius <= 0) return;
+    const key = `orb-${orbId}`;
+    registerUnionElement(key, btnRef.current);
+    const raf = requestAnimationFrame(() => notifyUnionMove());
+    return () => {
+      cancelAnimationFrame(raf);
+      registerUnionElement(key, null);
+    };
+  }, [useHic, frostOnly, container.mergeRadius, orbId, registerUnionElement, notifyUnionMove]);
 
   useEffect(() => {
     if (!stage.hicBridge) return;

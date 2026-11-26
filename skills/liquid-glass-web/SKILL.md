@@ -10,11 +10,12 @@ Build physically grounded Apple iOS 26/27 Liquid Glass interfaces on the web usi
 
 ## Installation & Setup
 
-Install the library and its `motion` peer dependency:
+Install the library. Its `motion` peer dependency (used for spring animations) is installed
+automatically by npm 7+, pnpm 8+ and bun; with Yarn, also run `yarn add motion`.
 
 ```bash
-npm install @pavlonekrasov/liquid-glass-web motion
-# or: pnpm add @pavlonekrasov/liquid-glass-web motion
+npm install @pavlonekrasov/liquid-glass-web
+# or: pnpm add @pavlonekrasov/liquid-glass-web
 ```
 
 Import the stylesheet once in the root layout or entry module:

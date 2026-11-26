@@ -56,9 +56,8 @@ export interface GlassSwitchProps extends GlassMaterialProps {
 }
 
 /**
- * Apple iOS 26/27 Liquid Glass UISwitch (`role="switch"`, >= 44px touch target).
- * Rests as a crisp opaque white pill over a frosted track with `|` / `○` a11y
- * markers, swelling into a clear refracting Snell + Fresnel droplet on press/drag/toggle.
+ * Glass switch (role="switch"). The thumb rests as a white pill and lifts into a
+ * refracting droplet on press or drag.
  */
 export function GlassSwitch({
   checked,
@@ -87,7 +86,7 @@ export function GlassSwitch({
   const ghostFillRef = useRef<HTMLDivElement>(null);
   const localSvgRef = useRef<SVGSVGElement>(null);
 
-  const hasStageSvg = stage.svgHostRef.current !== null;
+  const { hasStageSvg } = stage;
   const svgRef = hasStageSvg ? stage.svgHostRef : localSvgRef;
 
   const [pressed, setPressed] = useState(false);
@@ -177,6 +176,7 @@ export function GlassSwitch({
   });
   const draggedReleaseRef = useRef(false);
   const suppressNextClickRef = useRef(false);
+  const suppressTimerRef = useRef<number | null>(null);
   const lastSourceRef = useRef<InteractionSource>("pointer");
 
   const paint = useCallback(() => {
@@ -432,6 +432,7 @@ export function GlassSwitch({
 
   useEffect(
     () => () => {
+      if (suppressTimerRef.current !== null) window.clearTimeout(suppressTimerRef.current);
       stopAnims();
       glowAnim.current?.stop();
     },
@@ -506,6 +507,11 @@ export function GlassSwitch({
     if (wasMoved) {
       draggedReleaseRef.current = true;
       suppressNextClickRef.current = true;
+      if (suppressTimerRef.current !== null) window.clearTimeout(suppressTimerRef.current);
+      suppressTimerRef.current = window.setTimeout(() => {
+        suppressNextClickRef.current = false;
+        suppressTimerRef.current = null;
+      }, 0);
       const nextChecked = live.current.cx >= (OFF_CX + ON_CX) / 2;
       if (nextChecked !== checked) {
         onCheckedChange(nextChecked);

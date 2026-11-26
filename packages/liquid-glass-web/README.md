@@ -5,8 +5,11 @@ Physically grounded **Apple iOS 26/27 Liquid Glass** material and interactive co
 ## Install
 
 ```bash
-npm install @pavlonekrasov/liquid-glass-web motion
+npm install @pavlonekrasov/liquid-glass-web
 ```
+
+Spring animations use [Motion](https://motion.dev), a peer dependency. npm 7+, pnpm 8+ and bun
+install it for you; with Yarn, run `yarn add motion` as well.
 
 ## Usage
 

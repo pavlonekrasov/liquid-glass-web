@@ -71,7 +71,7 @@ export interface GlassTabBarProps extends GlassMaterialProps {
   readonly onChange: (value: string) => void;
   readonly size?: GlassTabBarSize;
   readonly activePill?: GlassActivePillStyle;
-  /** Parks the lifted refracting loupe between tab 0 and tab 1 for optical inspection. */
+  /** Parks the lifted loupe between the first two tabs, for inspecting the optics. */
   readonly parkedLoupe?: boolean;
   readonly "aria-label"?: string;
   readonly className?: string;
@@ -133,7 +133,7 @@ export function GlassTabBar({
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const localSvgRef = useRef<SVGSVGElement>(null);
 
-  const hasStageSvg = stage.svgHostRef.current !== null;
+  const { hasStageSvg } = stage;
   const svgRef = hasStageSvg ? stage.svgHostRef : localSvgRef;
 
   const activeIdx = Math.max(
@@ -202,14 +202,12 @@ export function GlassTabBar({
     [config.pressCompression],
   );
 
-  // Tier 1 / Tier 2 main bar glass (0 bakes in Tier 0 WebGL2; static SVG filter scale during springs)
   const { diag: barDiag } = useLiquidGlass(pillRef, svgRef, config, {
     role: "surface",
     enabled: !useHic,
     frostOnly,
   });
 
-  // Tier 1 / Tier 2 lifted floating loupe
   const { diag: loupeDiag } = useLiquidGlass(loupeRef, svgRef, config, {
     role: "loupe",
     enabled: !useHic && isRefractingLoupe,
@@ -230,7 +228,7 @@ export function GlassTabBar({
 
   const { reportLegibility, layoutVersion: stageLayoutVersion, requestChromePaint } = stage;
 
-  // Live scroll-adaptive WCAG AA legibility sampler (skipped during active pointer scrubs & spring flights)
+  // Legibility sampler, skipped while scrubbing or animating
   const runLegibilitySample = useCallback(() => {
     if (flyingRef.current) return;
     const barEl = pillRef.current;
@@ -296,7 +294,11 @@ export function GlassTabBar({
       });
     };
     schedule();
-    const scrollHost = document.querySelector<HTMLElement>('[data-lgw-scroll-container="true"]');
+    const scrollHost =
+      pillRef.current
+        ?.closest(".lgw-stage")
+        ?.querySelector<HTMLElement>('[data-lgw-scroll-container="true"]') ??
+      document.querySelector<HTMLElement>('[data-lgw-scroll-container="true"]');
     window.addEventListener("scroll", schedule, { passive: true });
     scrollHost?.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", schedule, { passive: true });
@@ -310,7 +312,6 @@ export function GlassTabBar({
     };
   }, [runLegibilitySample, size, useHic, scrubbing, stageLayoutVersion]);
 
-  // Analytical Tier 0 Float32 diagnostics (0 ms PNG bakes)
   const hicDiagnostics = useMemo<{
     bar: LiquidGlassDiagnostics;
     loupe: LiquidGlassDiagnostics;
@@ -552,7 +553,7 @@ export function GlassTabBar({
         pillAlpha: thumbOpacity,
         touchX: glowX,
         touchY: glowY,
-        // Attenuate Pass-1 glow while Pass-2 loupe is active so both never compound into haze
+        // Dim the bar glow while the loupe is up so the two don't stack into haze
         touchGlow: activeGlow * (1 - (isRefractingLoupe ? loupeOpacity * 0.85 : 0)),
         touchRadius: pillDeform.touchGlowRadius,
       });
@@ -625,8 +626,12 @@ export function GlassTabBar({
     };
   }, [stage.hicBridge, stage.layoutVersion, instanceId, paintIndicators]);
 
+  const scrubCleanupRef = useRef<(() => void) | null>(null);
+
   useEffect(
     () => () => {
+      scrubCleanupRef.current?.();
+      scrubCleanupRef.current = null;
       stopAnims();
       barGlowAnim.current?.stop();
     },
@@ -823,6 +828,19 @@ export function GlassTabBar({
     syncIndicatorsRef.current = syncIndicators;
   }, [syncIndicators]);
 
+  const { registerUnionElement, notifyUnionMove } = container;
+
+  useEffect(() => {
+    if (useHic || frostOnly || container.mergeRadius <= 0) return;
+    const key = `tabbar-${instanceId}`;
+    registerUnionElement(key, pillRef.current);
+    const raf = requestAnimationFrame(() => notifyUnionMove());
+    return () => {
+      cancelAnimationFrame(raf);
+      registerUnionElement(key, null);
+    };
+  }, [useHic, frostOnly, container.mergeRadius, instanceId, registerUnionElement, notifyUnionMove]);
+
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
@@ -835,10 +853,11 @@ export function GlassTabBar({
       prevW = nextW;
       prevH = nextH;
       if (!scrubRef.current.active) syncIndicatorsRef.current(true);
+      notifyUnionMove();
     });
     ro.observe(wrap);
     return () => ro.disconnect();
-  }, []);
+  }, [notifyUnionMove]);
 
   const nearestTabIndex = useCallback(
     (localCx: number) => {
@@ -893,6 +912,25 @@ export function GlassTabBar({
       lastTime: performance.now(),
       vxPxPerSec: 0,
       targetIdx: activeIdx,
+    };
+
+    // Guard against releasing outside the track before the 4px drag capture threshold
+    scrubCleanupRef.current?.();
+    const onGlobalRelease = (ev: globalThis.PointerEvent) => {
+      const s = scrubRef.current;
+      if (!s.active || s.pointerId !== ev.pointerId) return;
+      if (s.moved) return;
+      s.active = false;
+      setBarPressed(false);
+      animateBarTouchGlow(0);
+      scrubCleanupRef.current?.();
+      scrubCleanupRef.current = null;
+    };
+    window.addEventListener("pointerup", onGlobalRelease);
+    window.addEventListener("pointercancel", onGlobalRelease);
+    scrubCleanupRef.current = () => {
+      window.removeEventListener("pointerup", onGlobalRelease);
+      window.removeEventListener("pointercancel", onGlobalRelease);
     };
   };
 
@@ -982,6 +1020,8 @@ export function GlassTabBar({
   const finishScrub = (e: PointerEvent<HTMLDivElement>) => {
     const s = scrubRef.current;
     if (!s.active || s.pointerId !== e.pointerId) return;
+    scrubCleanupRef.current?.();
+    scrubCleanupRef.current = null;
     const wasMoved = s.moved;
     const vx = wasMoved ? s.vxPxPerSec : 0;
     const projectedCx = live.current.cx + (wasMoved ? projectMomentum(vx) : 0);

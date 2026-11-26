@@ -6,52 +6,43 @@ export type LabBackdropId = "plasma" | "ribbon" | "feed" | "grid" | "split";
 
 export const FEED_CARDS = [
   {
-    title: "Alpine Morning",
-    subtitle: "Dolomites · 6:14 AM · f/1.8",
-    badge: "RAW",
+    title: "Blue",
+    subtitle: "Bright highlight on deep blue",
     theme: "alpine",
     samples: "29,62,114;43,125,233;13,27,42",
   },
   {
-    title: "Neon Shibuya",
-    subtitle: "Tokyo · Rain reflections & signage",
-    badge: "HDR",
+    title: "Neon",
+    subtitle: "Pink and cyan on near-black",
     theme: "shibuya",
     samples: "11,16,38;26,11,46;255,46,147;0,229,255",
   },
   {
-    title: "Citrus Geometry",
-    subtitle: "High-chroma color edges for bezel test",
-    badge: "P3",
+    title: "Citrus",
+    subtitle: "Saturated stripes for color edges",
     theme: "citrus",
     samples: "255,81,47;240,152,25;255,224,0",
   },
   {
-    title: "Editorial Monochrome",
-    subtitle: "Sharp serif contrast under refracting rims",
-    badge: "MONO",
+    title: "Paper",
+    subtitle: "Thin ruled lines on white",
     theme: "mono",
     samples: "255,255,255;242,242,242",
   },
   {
-    title: "Pacific Sunset",
-    subtitle: "Warm horizon gradients · Beer–Lambert check",
-    badge: "LIVE",
+    title: "Dusk",
+    subtitle: "Soft warm gradient",
     theme: "sunset",
     samples: "44,30,90;200,75,107;255,123,84;255,154,90",
   },
   {
-    title: "Botanical Macro",
-    subtitle: "Deep emerald shadows + specular highlights",
-    badge: "48MP",
+    title: "Moss",
+    subtitle: "Dark green with a bright spot",
     theme: "emerald",
     samples: "15,81,50;7,34,27;52,232,158",
   },
 ] as const;
 
-/**
- * Flowing amber-gold & emerald-teal liquid plasma canvas (zero CSS filter on canvas).
- */
 export function LiquidPlasmaBackdrop({ paused = false }: { paused?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -151,7 +142,6 @@ export function LiquidPlasmaBackdrop({ paused = false }: { paused?: boolean }) {
   );
 }
 
-/** Vivid striated iridescent ribbon snaking behind the floating glass kit. */
 export function TwistedRibbonBackdrop() {
   const strands = [
     { offset: -36, color: "#ff2a6d", width: 16, opacity: 0.95 },
@@ -230,30 +220,13 @@ export function DaylightFeedBackdrop({ activeLabel }: { activeLabel: string }) {
   return (
     <div className="lab-feed">
       <section className="sc-section-head">
-        <p className="sc-section-kicker">
-          {activeLabel} · Scroll content directly behind the floating glass
-        </p>
-        <h2>Daylight Adaptive Contrast</h2>
+        <p className="sc-section-kicker">{activeLabel}</p>
+        <h2>Scroll test</h2>
         <p>
-          As vivid artwork, monochrome typography, and barcode rulings scroll beneath the bar and
-          orb, Schmitt-trigger luminance sampling guarantees WCAG AA ≥ 4.5:1 legibility.
+          Scroll so color, type, and fine lines pass under the bar. The labels on the glass switch
+          between dark and light to stay readable.
         </p>
       </section>
-
-      <div
-        className="lab-spectrum-strip"
-        aria-hidden="true"
-        data-lgw-bg-samples="255,59,48;255,149,0;255,204,0;52,199,89;0,122,255;88,86,214;175,82,222"
-      >
-        <span />
-        <span />
-        <span />
-        <span />
-        <span />
-        <span />
-        <span />
-        <span />
-      </div>
 
       <div className="lab-feed__grid">
         {FEED_CARDS.map((card) => (
@@ -262,9 +235,7 @@ export function DaylightFeedBackdrop({ activeLabel }: { activeLabel: string }) {
             className={`lab-card lab-card--${card.theme}`}
             data-lgw-bg-samples={card.samples}
           >
-            <div>
-              <span className="lab-card__badge">{card.badge}</span>
-            </div>
+            <div />
             <div className="lab-card__content">
               <h3>{card.title}</h3>
               <p>{card.subtitle}</p>
@@ -274,14 +245,9 @@ export function DaylightFeedBackdrop({ activeLabel }: { activeLabel: string }) {
       </div>
 
       <section className="lab-type-test">
-        <div className="lab-type-test__row">
-          <span>01 · VERTICAL RULING</span>
-          <span>02 · SNELL BEZEL WRAP</span>
-          <span>03 · CAUCHY SPECTRAL DISPERSION</span>
-        </div>
         <p className="lab-type-test__display">
-          Press and scrub across tabs to lift the refracting loupe and bend typography and color
-          bands through real N-BK7 optics.
+          Press a tab and drag across the bar. The lifted lens should bend this line without
+          doubling it.
         </p>
         <div
           className="lab-barcode"
@@ -301,24 +267,24 @@ export function OpticsGridBackdrop() {
           className="lab-optics-band lab-optics-band--rulings"
           data-lgw-bg-samples="255,255,255;214,214,214"
         >
-          <span>1px / 24px Orthogonal Calibration Grid</span>
+          <span>1 px grid</span>
         </div>
         <div
           className="lab-optics-band lab-optics-band--checker"
           data-lgw-bg-samples="24,27,34;243,244,246"
         >
-          <span>High-Contrast Checkerboard (Blur &amp; Chromatic Split Probe)</span>
+          <span>Checkerboard</span>
         </div>
         <div
           className="lab-optics-band lab-optics-band--stripes"
           data-lgw-bg-samples="255,59,48;255,255,255;0,122,255;52,199,89;17,19,24"
         >
-          <span>Chromatic Vertical Bars (Snell Edge Bending Probe)</span>
+          <span>Color bars</span>
         </div>
         <div className="lab-optics-band lab-optics-band--text">
           <p>
-            ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789 · Snell n₁ sin θ₁ = n₂ sin θ₂ · Schlick Fresnel
-            R(θ) = R₀ + (1 − R₀)(1 − cos θ)⁵ · Cauchy 11-Band Dispersion · Beer–Lambert τ = e^(−σh)
+            ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789. Straight lines should
+            bow at the rim, never shear or fold.
           </p>
         </div>
       </div>
@@ -331,12 +297,9 @@ export function SplitPolarityBackdrop() {
     <div className="lab-split">
       <div className="lab-split__half lab-split__half--light" data-lgw-surface-bg="true">
         <div className="lab-split__content">
-          <span className="lab-split__tag">DAYLIGHT SURFACE</span>
-          <h2>Pure White Polarity</h2>
-          <p>
-            Verifies containment ring, tucked Gaussian shadow, and adaptive dark ink without muddy
-            soot or chalky fog.
-          </p>
+          <span className="lab-split__tag">Light</span>
+          <h2>On white</h2>
+          <p>Labels go dark. The rim stays visible and the shadow stays soft, with no grey haze.</p>
           <div className="lab-split__bars">
             <div />
             <div />
@@ -346,12 +309,9 @@ export function SplitPolarityBackdrop() {
       </div>
       <div className="lab-split__half lab-split__half--dark" data-lgw-surface-bg="true">
         <div className="lab-split__content">
-          <span className="lab-split__tag">OBSIDIAN SURFACE</span>
-          <h2>OLED Dark Polarity</h2>
-          <p>
-            Verifies 3D bezel-normal dual-bounce Schlick Fresnel speculars, 11-band Cauchy edge
-            shimmer, and chroma recovery.
-          </p>
+          <span className="lab-split__tag">Dark</span>
+          <h2>On black</h2>
+          <p>Labels go light. The rim catches the light on the top edge without glowing.</p>
           <div className="lab-split__bars">
             <div />
             <div />

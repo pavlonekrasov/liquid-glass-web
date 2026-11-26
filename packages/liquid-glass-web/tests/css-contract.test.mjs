@@ -32,7 +32,7 @@ test("library CSS enforces -webkit-backdrop-filter order, border-radius: inherit
     "Fresnel ::after must set border-radius: inherit",
   );
 
-  // Must NOT animate background-color on ::before (Chromium BackgroundColorPaintWorklet white flash)
+  // Animating background-color on ::before flashes white in Chromium
   const beforeBlock =
     /\.lgw-glass-surface\[data-lgw-lit\]::before\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
   assert.equal(

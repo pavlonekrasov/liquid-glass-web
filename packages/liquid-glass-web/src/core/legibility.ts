@@ -1,11 +1,3 @@
-/* ===========================================================================
-   Scroll-Adaptive WCAG AA Legibility Solver — guarantees >= 4.5:1 label
-   contrast over arbitrary scrolling content while preserving glass clarity.
-   Separates 10-point area-weighted polaritySamples (Schmitt trigger [0.24, 0.56]
-   + temporal dwell) from worst-case contrastSamples (minimal uniform scrim).
-   Pure math, no DOM.
-   =========================================================================== */
-
 import { contrastRatio, relativeLuminance, type SRGB } from "./color.ts";
 
 export type LegibilityPolarity = "light" | "dark";
@@ -22,15 +14,15 @@ export interface PolarityObservation {
 }
 
 export interface AdaptiveLegibilityOptions {
-  /** Current Beer–Lambert plateau tint opacity already painted (0..1). */
+  /** Opacity of the tint already painted (0..1). */
   readonly baseTintAlpha?: number;
-  /** Current Beer–Lambert tint RGB (defaults to pole's neutral scrim color). */
+  /** Current tint RGB (defaults to the polarity's neutral scrim color). */
   readonly baseTintRgb?: SRGB;
-  /** Minimum WCAG 2.1 contrast ratio guaranteed across sampled backdrop points (default 5.0). */
+  /** Minimum contrast ratio to hold across the sampled points (default 5.0). */
   readonly targetContrast?: number;
-  /** Previous committed polarity for Schmitt-trigger hysteresis against wave/gap white flashes. */
+  /** Previously committed polarity, for hysteresis. */
   readonly previousPolarity?: LegibilityPolarity;
-  /** Area-weighted spatial samples driving calm mean-luminance polarity (defaults to samples). */
+  /** Area-weighted samples used to choose polarity (defaults to samples). */
   readonly polaritySamples?: readonly SRGB[];
   /** Optional locked polarity when adaptiveContrast is disabled. */
   readonly forcedPolarity?: LegibilityPolarity;
@@ -40,15 +32,15 @@ export interface AdaptiveLegibilityResult {
   readonly polarity: LegibilityPolarity;
   readonly foregroundRgb: SRGB;
   readonly scrimRgb: SRGB;
-  /** Exact combined plateau opacity holding targetContrast across worst-case pixels. */
+  /** Plateau opacity that holds targetContrast at the worst pixel. */
   readonly totalPlateauAlpha: number;
-  /** Additional GPU scrim alpha composited over baseTintAlpha (source-over delta, 0..0.85). */
+  /** Extra scrim alpha drawn over baseTintAlpha (0..0.85). */
   readonly scrimAlpha: number;
-  /** Localized text-shadow guard opacity (0.22..0.66) scaled by backdrop luminance spread. */
+  /** Text-shadow opacity (0.22..0.66), scaled by the backdrop's luminance spread. */
   readonly guardAlpha: number;
-  /** Worst-case WCAG 2.1 contrast ratio across all sampled pixels after scrim. */
+  /** Lowest contrast ratio across the samples after the scrim. */
   readonly worstContrast: number;
-  /** Mean WCAG 2.1 contrast ratio across sampled pixels after scrim. */
+  /** Mean contrast ratio across the samples after the scrim. */
   readonly meanContrast: number;
   /** Luminance spread (max - min) behind the glass surface. */
   readonly luminanceSpread: number;
@@ -61,7 +53,7 @@ export const LIGHT_SCRIM_RGB: SRGB = [250, 251, 254];
 const DEFAULT_TARGET_CONTRAST = 5.0;
 const MAX_PLATEAU_ALPHA = 0.78;
 
-/** Schmitt-trigger mean-luminance thresholds preventing polarity flicker on gold crests / card gaps. */
+/** Hysteresis thresholds on mean luminance, so polarity doesn't flicker over small bright or dark patches. */
 export const FLIP_TO_DARK_INK_LUM = 0.56;
 export const FLIP_TO_LIGHT_INK_LUM = 0.24;
 export const DEFAULT_POLARITY_DWELL_MS = 220;
@@ -158,7 +150,7 @@ function solvePole(
   };
 }
 
-/** Temporal hysteresis dwell gate preventing chatter while scrolling across boundaries. */
+/** How long a new polarity must hold before it is committed. */
 export function stabilizePolarity(
   state: Readonly<PolarityStabilityState>,
   observed: LegibilityPolarity,
@@ -197,9 +189,8 @@ export function stabilizePolarity(
 }
 
 /**
- * Chooses foreground polarity from area-weighted mean backdrop luminance via a
- * wide Schmitt trigger ([0.24, 0.56]), then solves the exact minimum seamless
- * uniform scrim opacity guaranteeing >= targetContrast (WCAG AA).
+ * Picks text polarity from mean backdrop luminance (with hysteresis), then the
+ * smallest uniform scrim opacity that reaches targetContrast.
  */
 export function solveAdaptiveLegibility(
   samples: readonly SRGB[],

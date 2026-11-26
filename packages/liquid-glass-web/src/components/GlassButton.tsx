@@ -26,11 +26,7 @@ export interface GlassButtonProps
   size?: GlassButtonSize;
 }
 
-/**
- * Tactile Apple Liquid Glass capsule button (>= 44x44px touch target) with
- * critically damped press response, `.interactive()` touch-point rim sheen,
- * and automatic Tier 0 -> 1 -> 2 -> 3 parity.
- */
+/** Capsule button with a 44px minimum touch target and press feedback. */
 export function GlassButton({
   children,
   size = "md",
@@ -59,7 +55,7 @@ export function GlassButton({
   const localSvgRef = useRef<SVGSVGElement>(null);
   const [pressed, setPressed] = useState(false);
 
-  const hasStageSvg = stage.svgHostRef.current !== null;
+  const { hasStageSvg } = stage;
   const svgRef = hasStageSvg ? stage.svgHostRef : localSvgRef;
 
   const config = useMemo(
@@ -189,6 +185,19 @@ export function GlassButton({
       },
     });
   }, [pressed, config.interactive, config.pressCompression, stage.reducedMotion, paintBtn]);
+
+  const { registerUnionElement, notifyUnionMove } = container;
+
+  useEffect(() => {
+    if (useHic || frostOnly || container.mergeRadius <= 0) return;
+    const key = `btn-${btnId}`;
+    registerUnionElement(key, btnRef.current);
+    const raf = requestAnimationFrame(() => notifyUnionMove());
+    return () => {
+      cancelAnimationFrame(raf);
+      registerUnionElement(key, null);
+    };
+  }, [useHic, frostOnly, container.mergeRadius, btnId, registerUnionElement, notifyUnionMove]);
 
   useEffect(() => {
     if (!stage.hicBridge) return;

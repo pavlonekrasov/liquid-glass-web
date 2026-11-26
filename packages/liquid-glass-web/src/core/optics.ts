@@ -1,17 +1,3 @@
-/* ===========================================================================
-   Liquid Glass Optics — standalone physical refraction, Fresnel, spectral,
-   Beer–Lambert, and 9-slice tile geometry engine. Zero DOM, pure math.
-
-   Laws enforced:
-     1. Strict h(0) = 0 boundary continuity -> d(0) = 0 and d(b) = 0 (zero teleport).
-     2. Worst-case Blue-channel press fold-free Jacobian guard: min(1 + M*d') >= 0.20.
-     3. 3D bezel-normal dual-bounce Schlick Fresnel, box-filtered across DPR 1x-3x
-        with zero uniform wireframe outline.
-     4. 5-band continuous spectral weights summing to exact (1, 1, 1) white and
-        transparent-safe Aave content-path normalized coverage.
-     5. Beer–Lambert volumetric absorption composited via seam-free overlays.
-   =========================================================================== */
-
 import {
   fieldDataUrl,
   fieldSvg,
@@ -99,11 +85,7 @@ export function dispersionFactors(glass: GlassDispersionSpec): {
   return { r: (glass.nC - 1) / base, g: 1, b: (glass.nF - 1) / base };
 }
 
-/**
- * 5-band continuous spectral weights (656 nm C-line to 455 nm F/g-line).
- * Channel weights sum to exact (1.00, 1.00, 1.00) so flat interior pixels
- * preserve white and mid-grey with 0/255 error.
- */
+/** 5-band spectral weights (656 nm to 455 nm). Each channel sums to 1, so flat areas keep their color. */
 export const SPECTRAL_BANDS: readonly SpectralBand[] = [
   { id: "r", offset: -1.0, r: 0.5, g: 0, b: 0 },
   { id: "y", offset: -0.45, r: 0.5, g: 0.33, b: 0 },
@@ -139,8 +121,6 @@ export function contentSpectralBandAlpha(band: SpectralBand): number {
   return 1 / SPECTRAL_BANDS.length;
 }
 
-/* ---- Fresnel & Beer–Lambert ---------------------------------------------- */
-
 /** Normal-incidence reflectance R0 = ((n - 1) / (n + 1))^2. */
 export function fresnelR0(ior: number): number {
   return ((ior - 1) / (ior + 1)) ** 2;
@@ -156,8 +136,6 @@ export function fresnelSchlick(cosTheta: number, ior: number): number {
 export function absorptionFor(plateauAlpha: number, thickness: number): number {
   return -Math.log(1 - Math.min(clamp01(plateauAlpha), 0.999)) / Math.max(1e-3, thickness);
 }
-
-/* ---- Height Profiles & Snell Displacement -------------------------------- */
 
 /** Normalized bezel height f(x) for x in [0, 1], enforcing f(0) = 0, f(1) = 1, f'(1) = 0. */
 export function profileHeight(profile: GlassShapeProfile, x: number): number {
@@ -254,8 +232,6 @@ function sampleTable(table: Float64Array, bezel: number, s: number): number {
   return table[i] * (1 - t) + table[i + 1] * t;
 }
 
-/* ---- Displacement Byte Encoding & 9-Slice Tile Generation ---------------- */
-
 /** Exact neutral byte for feDisplacementMap so quadrant mirroring (256 - byte) is lossless. */
 export const NEUTRAL = 128;
 
@@ -318,7 +294,7 @@ export interface DisplacementTileSet {
   readonly neutral: Tile;
 }
 
-/** Builds fold-free 9-slice Snell displacement tiles (flat interior = exact neutral 128). */
+/** Builds the 9-slice displacement tiles (the flat interior is neutral 128). */
 export function buildDisplacementTiles(
   radius: number,
   optics: GlassOptics,
@@ -379,8 +355,6 @@ export function buildDisplacementTiles(
     neutral,
   };
 }
-
-/* ---- SVG Filter 9-Slice Primitive Layout --------------------------------- */
 
 export interface LensRect {
   readonly x: number;
@@ -445,8 +419,6 @@ export function lensLayout(
     },
   };
 }
-
-/* ---- Bezel-Normal Dual-Bounce Schlick Fresnel & Beer–Lambert Overlays ---- */
 
 const toByte = (alpha: number) => Math.round(255 * clamp01(alpha));
 
@@ -516,7 +488,8 @@ function solveDisplayGain(targetA: number, subValues: number[]): number {
   return 0.5 * (lo + hi);
 }
 
-function dualRimTerms(optics: GlassOptics, spec: DualLightingSpec, pixel: number) {
+/** Fresnel LUT and display-gain solver. */
+export function dualRimTerms(optics: GlassOptics, spec: DualLightingSpec, pixel: number) {
   const a = (spec.angleDeg * Math.PI) / 180;
   const cosA = Math.cos(a);
   const sinA = Math.sin(a);
@@ -599,7 +572,7 @@ function dualRimTerms(optics: GlassOptics, spec: DualLightingSpec, pixel: number
   };
 }
 
-/** Pure bezel-normal dual-bounce Schlick Fresnel lighting sheets (alpha mask + straight sRGB color). */
+/** Fresnel lighting sheets (alpha mask and straight sRGB color). */
 export function lightingOverlay(
   radius: number,
   optics: GlassOptics,
@@ -650,7 +623,7 @@ export function lightingOverlay(
   };
 }
 
-/** Pure Beer–Lambert volumetric body absorption alpha sheet. */
+/** Body absorption alpha sheet. */
 export function tintField(
   radius: number,
   optics: GlassOptics,

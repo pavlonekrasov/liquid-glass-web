@@ -1,7 +1,4 @@
-// liquid-glass-web — Headless installed-Firefox (Gecko) multi-DPR optical & Tier 2 harness
-//
-// Drives real Mozilla Firefox via its built-in W3C WebDriver BiDi server
-// (--headless --remote-debugging-port) using Node's native WebSocket.
+// Headless Firefox checks over WebDriver BiDi.
 //
 // Usage:
 //   node scripts/verify-firefox.mjs
@@ -249,7 +246,7 @@ const ff = new FirefoxBiDi(firefoxExe);
 try {
   await ff.launch();
   report.browserVersion = ff.browserVersion;
-  /* ---- 1. Showcase Landing (/) at 2x DPR ---------------------------------- */
+  // 1. Landing page at 2x DPR
   console.error("[firefox] step 1: showcase /");
   await ff.setDpr(2);
   await ff.navigate(`${base}/`);
@@ -286,7 +283,7 @@ try {
   writeFileSync(path.join(out, "ff-00-showcase-landing-2x.png"), shotShowcase);
   report.shots.push("ff-00-showcase-landing-2x.png");
 
-  /* ---- 2. Material Lab (/lab) Auto Tier 2 + DialKit + Attribution --------- */
+  // 2. Lab: auto tier, DialKit, credit
   await ff.navigate(`${base}/lab?backdrop=plasma&paused=1`);
   await sleep(1200);
 
@@ -294,16 +291,14 @@ try {
     const root = document.querySelector('[data-lab-engine]');
     const stage = document.querySelector('[data-lgw-tier]');
     const text = document.body.innerText;
-    const dialBtn = Array.from(document.querySelectorAll('button.dialkit-button')).find((b) =>
-      b.textContent?.includes('Copy JSX & Props'),
-    );
+    const exportBtn = Array.from(document.querySelectorAll('.dialkit-panel button')).find((b) => b.textContent?.trim() === 'Export code');
     return {
       labEngine: root?.getAttribute('data-lab-engine') ?? null,
       stageTier: stage?.getAttribute('data-lgw-tier') ?? null,
       mentionsDialKit: text.includes('DialKit'),
       mentionsJoshPuckett: text.includes('Josh Puckett'),
       hasDialKitPanel: Boolean(document.querySelector('.dialkit-panel')),
-      hasDialActionBtn: Boolean(dialBtn),
+      hasExportBtn: Boolean(exportBtn),
     };
   }`);
 
@@ -312,33 +307,27 @@ try {
   report.shots.push("ff-01-lab-plasma-2x.png");
 
   const exportDrawerWorks = await ff.evalJson(`async () => {
-    const dialBtn = Array.from(document.querySelectorAll('button.dialkit-button')).find((b) =>
-      b.textContent?.includes('Copy JSX & Props'),
-    );
-    if (!dialBtn) return false;
-    dialBtn.click();
+    const exportBtn = Array.from(document.querySelectorAll('.dialkit-panel button')).find((b) => b.textContent?.trim() === 'Export code');
+    if (!exportBtn) return false;
+    exportBtn.click();
     await new Promise((r) => setTimeout(r, 250));
     const code = document.querySelector('.lab-drawer__code')?.textContent ?? '';
-    const foot = document.querySelector('.lab-drawer__foot')?.textContent ?? '';
     const closeBtn = Array.from(document.querySelectorAll('.lab-drawer button')).find((b) =>
       b.textContent?.trim() === 'Close',
     );
     closeBtn?.click();
-    return code.includes('<GlassStage') && foot.includes('Josh Puckett');
+    return code.includes('<GlassStage');
   }`);
 
   report.materialLab = { ...labCheck, exportDrawerWorks };
 
-  /* ---- 3. Tier 2 Aave Content-Path Parked Loupe on Twisted Ribbon --------- */
+  // 3. Tier 2 parked loupe on the ribbon backdrop
   await ff.navigate(`${base}/lab?backdrop=ribbon&parked=1`);
   await sleep(1200);
 
-  // Hide HUD via keyboard or button for clean optical inspection
+  // Hide the Lab controls
   await ff.evalJson(`() => {
-    const btn = Array.from(document.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Hide HUD'),
-    );
-    btn?.click();
+    Array.from(document.querySelectorAll('.lab-bar button')).find((b) => b.textContent?.includes('Hide controls'))?.click();
   }`);
   await sleep(300);
 
@@ -382,7 +371,7 @@ try {
   writeFileSync(path.join(out, "ff-02-tier2-aave-ribbon-2x.png"), shotRibbonFull);
   report.shots.push("ff-02-tier2-aave-ribbon-2x.png");
 
-  // Close-up around the bar + parked Aave content-path loupe + orb
+  // Close-up of the bar, parked loupe and orb
   if (aaveDom.wrapRect) {
     const pad = 36;
     const shotRibbonCrop = await ff.screenshot({
@@ -395,7 +384,7 @@ try {
     report.shots.push("ff-02b-tier2-loupe-closeup-2x.png");
   }
 
-  // Verify Aave spectral filter actually displaces & splits pixels in real Firefox
+  // The Tier 2 filter really displaces and splits pixels
   let aavePixelCheck = null;
   if (aaveDom.loupeRect) {
     const withFilter = await ff.screenshot({
@@ -427,7 +416,7 @@ try {
       const m = Math.max(dr, dg, db);
       if (m > maxChDiff) maxChDiff = m;
       if (m > 8) diffPixels++;
-      // Spectral dispersion creates slight channel separation near displaced glyph rims
+      // Dispersion separates channels slightly near displaced glyph edges
       const spreadA =
         Math.max(pxA.rgba[i], pxA.rgba[i + 1], pxA.rgba[i + 2]) -
         Math.min(pxA.rgba[i], pxA.rgba[i + 1], pxA.rgba[i + 2]);
@@ -440,7 +429,7 @@ try {
   }
   report.tier2Aave = { ...aaveDom, aavePixelCheck };
 
-  /* ---- 4. Daylight Feed WCAG AA & Tint Parity (Dark & Bright regions) ----- */
+  // 4. Daylight feed contrast and tint parity
   await ff.navigate(`${base}/lab?backdrop=feed`);
   await sleep(1100);
 
@@ -460,7 +449,7 @@ try {
     };
   }`);
 
-  // Scroll to the bright editorial prose / monochrome feed section to verify dark-ink daylight polarity
+  // Scroll to the bright section to check dark text
   await ff.evalJson(`async () => {
     window.scrollTo(0, 620);
     await new Promise((r) => setTimeout(r, 700));
@@ -492,7 +481,7 @@ try {
   writeFileSync(path.join(out, "ff-03-daylight-feed-2x.png"), shotDaylight);
   report.shots.push("ff-03-daylight-feed-2x.png");
 
-  /* ---- 5. Interactive Controls & Tab-Switch Perf in Real Firefox ---------- */
+  // 5. Controls and tab-switch timing
   await ff.navigate(`${base}/lab?backdrop=plasma&paused=1`);
   await sleep(900);
 
@@ -555,14 +544,14 @@ try {
     };
   }`);
 
-  /* ---- 6. C² Squircle Optics Grid at 2x DPR ------------------------------- */
+  // 6. Squircle optics grid at 2x DPR
   await ff.navigate(`${base}/lab?backdrop=grid&profile=c2squircle&parked=1`);
   await sleep(900);
   const shotGrid = await ff.screenshot();
   writeFileSync(path.join(out, "ff-04-c2squircle-grid-2x.png"), shotGrid);
   report.shots.push("ff-04-c2squircle-grid-2x.png");
 
-  /* ---- 7. Fractional DPR Fresnel Top-Rim Profile (1x, 1.25x, 1.5x, 2x) ---- */
+  // 7. Fresnel top-rim profile at 1x, 1.25x, 1.5x, 2x
   for (const dpr of [1, 1.25, 1.5, 2]) {
     console.error(`[firefox] step 7: Fresnel rim @ ${dpr}x`);
     await ff.setDpr(dpr);
@@ -570,10 +559,7 @@ try {
     await sleep(900);
 
     const barRect = await ff.evalJson(`() => {
-      const btn = Array.from(document.querySelectorAll('button')).find((b) =>
-        b.textContent?.includes('Hide HUD'),
-      );
-      btn?.click();
+      Array.from(document.querySelectorAll('.lab-bar button')).find((b) => b.textContent?.includes('Hide controls'))?.click();
       const sheet = document.createElement('div');
       Object.assign(sheet.style, {
         position: 'fixed',
@@ -628,12 +614,12 @@ report.gates = {
     report.showcase?.tier === "svg-content" &&
     report.showcase?.hasDataLgRefract === false &&
     report.materialLab?.stageTier === "svg-content",
-  allFiveComponentsMounted:
+  // GlassButton is not used on the site, so only the four components it shows are checked.
+  allSiteComponentsMounted:
     Boolean(report.showcase?.hasTabBar) &&
     Boolean(report.showcase?.hasOrb) &&
     Boolean(report.showcase?.hasSwitch) &&
-    Boolean(report.showcase?.hasSlider) &&
-    Boolean(report.showcase?.hasButton),
+    Boolean(report.showcase?.hasSlider),
   dialkitAttributedAndExportWorks: Boolean(
     report.materialLab?.mentionsDialKit &&
       report.materialLab?.mentionsJoshPuckett &&
