@@ -1,0 +1,31 @@
+{
+  "name": "liquid-glass-web-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@10.28.2",
+  "scripts": {
+    "dev": "pnpm --filter @liquid-glass-web/web dev",
+    "build:pkg": "pnpm --filter liquid-glass-web build",
+    "build:web": "pnpm --filter @liquid-glass-web/web build",
+    "build": "pnpm run build:pkg && pnpm run build:web",
+    "test": "pnpm --filter liquid-glass-web test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint . --max-warnings 0",
+    "publint": "pnpm --filter liquid-glass-web publint",
+    "verify:visuals": "node scripts/verify-visuals.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "eslint": "^9.39.2",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.0.0",
+    "playwright": "^1.52.0",
+    "publint": "^0.3.12",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.32.0"
+  }
+}

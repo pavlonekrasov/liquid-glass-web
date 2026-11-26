@@ -1,0 +1,872 @@
+/* ===========================================================================
+   liquid-glass-web — Scoped Apple iOS 26/27 Liquid Glass Stylesheet
+   Invariants enforced:
+     1. -webkit-backdrop-filter ALWAYS precedes backdrop-filter.
+     2. border-radius: inherit on ::before and ::after.
+     3. Never animate background-color on ::before with -webkit-mask-box-image
+        (animates opacity on dedicated .lgw-scrim only).
+     4. Adaptive [data-fg] tint applies to EVERY glass surface (bars, orbs,
+        buttons, cards) for daylight/dark polarity parity.
+     5. Full accessibility parity across prefers-reduced-motion,
+        prefers-reduced-transparency, prefers-contrast: more, and forced-colors.
+   =========================================================================== */
+
+.lgw-stage {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+}
+
+.lgw-stage--fullscreen {
+  min-height: 100svh;
+}
+
+.lgw-svg-host {
+  position: fixed;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.lgw-scene {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+}
+
+/* ---- Tier 0 HTML-in-Canvas Full-Viewport WebGL2 Host ---------------------- */
+
+.lgw-hic-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100svh;
+  display: block;
+  z-index: 1;
+}
+
+.lgw-hic-scene {
+  position: relative;
+  width: 100vw;
+  height: 100svh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.lgw-hic-chrome {
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100svh;
+  pointer-events: none;
+  background-color: transparent;
+}
+
+.lgw-chrome {
+  pointer-events: none;
+}
+
+.lgw-chrome .lgw-container,
+.lgw-chrome .lgw-glass-surface,
+.lgw-chrome .lgw-switch,
+.lgw-chrome .lgw-slider,
+.lgw-chrome .lgw-button,
+.lgw-hic-chrome .lgw-container,
+.lgw-hic-chrome .lgw-glass-surface,
+.lgw-hic-chrome .lgw-switch,
+.lgw-hic-chrome .lgw-slider,
+.lgw-hic-chrome .lgw-button {
+  pointer-events: auto;
+}
+
+/* ---- GlassContainer (GlassEffectContainer smin Group) --------------------- */
+
+.lgw-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* ---- Core Liquid Glass Material Surface (Tier 1 & Tier 2) ----------------- */
+
+.lgw-glass-surface {
+  position: relative;
+  isolation: isolate;
+  border-radius: 999px;
+  border-style: solid;
+  border-width: var(--lgw-border-width, 0px);
+  border-color: var(--lgw-edge-color, transparent);
+  background-color: transparent;
+  -webkit-backdrop-filter: var(--lgw-backdrop, blur(2px) saturate(1.25));
+  backdrop-filter: var(--lgw-backdrop, blur(2px) saturate(1.25));
+  box-shadow: var(--lgw-shadow, 0 1px 3px rgb(15 20 32 / 0.07), 0 8px 22px -6px rgb(15 20 32 / 0.13));
+}
+
+/* Beer–Lambert volumetric body tint (NEVER animate background-color here) */
+.lgw-glass-surface[data-lgw-lit]::before {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--lgw-body-inset, 1px));
+  border-radius: inherit;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--lgw-body-color, rgb(14 18 28));
+  mask-image: var(--lgw-body-mask);
+  mask-mode: luminance;
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+}
+
+/* Adaptive [data-fg] Beer–Lambert tint overrides apply to EVERY glass surface (bars, orbs, buttons) */
+[data-adaptive-a11y="true"][data-fg="light"] .lgw-glass-surface:not(.lgw-loupe):not(.lgw-switch__loupe):not(.lgw-slider__loupe)[data-lgw-lit]::before {
+  background-color: rgb(12 16 26);
+}
+
+[data-adaptive-a11y="true"][data-fg="dark"] .lgw-glass-surface:not(.lgw-loupe):not(.lgw-switch__loupe):not(.lgw-slider__loupe)[data-lgw-lit]::before {
+  background-color: rgb(250 251 254);
+}
+
+:root[data-lg-refract] .lgw-glass-surface[data-lgw-lit]::before {
+  mask-image: none;
+  -webkit-mask-box-image: var(--lgw-body-mask) 0 fill;
+}
+
+/* Dual-bounce 3D bezel-normal Schlick Fresnel specular rim highlight */
+.lgw-glass-surface[data-lgw-lit]::after {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--lgw-light-inset, 1px));
+  border-radius: inherit;
+  z-index: -1;
+  pointer-events: none;
+  border-style: solid;
+  border-color: transparent;
+  border-width: 0;
+  border-image-source: var(--lgw-light-color);
+  border-image-slice: 0 fill;
+  border-image-repeat: stretch;
+  mask-image: var(--lgw-light-mask);
+  mask-mode: luminance;
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+}
+
+:root[data-lg-refract] .lgw-glass-surface[data-lgw-lit]::after {
+  mask-image: none;
+  -webkit-mask-box-image: var(--lgw-light-mask) 0 fill;
+}
+
+/* Seamless full-capsule WCAG AA scrim (animates opacity ONLY) */
+.lgw-scrim {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+/* ---- Tier 0 Transparency Overrides (GPU paints glass, live HTML owns glyphs/a11y) --- */
+
+[data-hic-webgl="true"] .lgw-glass-surface {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border-color: transparent;
+  box-shadow: none;
+  background-color: transparent;
+}
+
+[data-hic-webgl="true"] .lgw-glass-surface::before,
+[data-hic-webgl="true"] .lgw-glass-surface::after,
+[data-hic-webgl="true"] .lgw-scrim,
+[data-hic-webgl="true"] .lgw-tabbar__thumb,
+[data-hic-webgl="true"] .lgw-loupe,
+[data-hic-webgl="true"] .lgw-switch__track,
+[data-hic-webgl="true"] .lgw-switch__thumb,
+[data-hic-webgl="true"] .lgw-switch__loupe,
+[data-hic-webgl="true"] .lgw-slider__track,
+[data-hic-webgl="true"] .lgw-slider__thumb,
+[data-hic-webgl="true"] .lgw-slider__loupe {
+  visibility: hidden;
+}
+
+[data-hic-webgl="true"] .lgw-switch:focus-visible,
+[data-hic-webgl="true"] .lgw-slider:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+
+/* ---- GlassTabBar ---------------------------------------------------------- */
+
+.lgw-tabbar-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.lgw-tabbar {
+  padding: 5px;
+}
+
+.lgw-tabbar__track {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  touch-action: none;
+}
+
+.lgw-tab {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 0;
+  border-radius: 999px;
+  background-color: transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  transition: color 150ms ease;
+}
+
+.lgw-tabbar--compact .lgw-tab {
+  min-width: 84px;
+  min-height: 50px;
+  padding: 4px 8px;
+}
+
+.lgw-tabbar--compact .lgw-tab__label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.lgw-tabbar--compact .lgw-tab.is-active .lgw-tab__label,
+.lgw-tabbar--text .lgw-tab.is-active .lgw-tab__label {
+  font-weight: 600;
+}
+
+.lgw-tabbar--icons .lgw-tab {
+  min-width: 56px;
+  min-height: 46px;
+  padding: 0;
+}
+
+.lgw-tabbar--text .lgw-tab {
+  flex-direction: row;
+  min-width: 82px;
+  min-height: 44px;
+  padding: 4px 12px;
+}
+
+.lgw-tabbar--text .lgw-tab__label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.lgw-tab__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* Foreground polarity (WCAG AA ink independent of dispersion & Fresnel) */
+[data-fg="dark"] .lgw-tab,
+[data-fg="dark"] .lgw-orb,
+[data-fg="dark"] .lgw-button {
+  color: rgb(10 12 18 / 0.94);
+  text-shadow: none;
+}
+
+[data-fg="dark"] .lgw-tab.is-active {
+  color: rgb(8 10 16 / 1);
+}
+
+[data-fg="light"] .lgw-tab,
+[data-fg="light"] .lgw-orb,
+[data-fg="light"] .lgw-button {
+  color: rgb(255 255 255 / 0.94);
+  text-shadow: 0 0.5px 1px rgb(0 0 0 / 0.18);
+}
+
+[data-fg="light"] .lgw-tab.is-active {
+  color: rgb(255 255 255 / 1);
+}
+
+.lgw-tab.is-inverted {
+  color: rgb(250 249 246 / 0.98);
+  text-shadow: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-fg="light"] .lgw-tab:not(.is-active):hover {
+    color: rgb(255 255 255 / 0.98);
+  }
+
+  [data-fg="dark"] .lgw-tab:not(.is-active):hover {
+    color: rgb(10 12 18 / 0.96);
+  }
+}
+
+.lgw-tab:focus-visible,
+.lgw-orb:focus-visible,
+.lgw-button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* Concentric borderless resting selection pill */
+.lgw-tabbar__thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 999px;
+  z-index: 1;
+  pointer-events: none;
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+
+[data-fg="light"] .lgw-tabbar__thumb--refracting-loupe,
+[data-fg="light"] .lgw-tabbar__thumb--tint {
+  background-color: rgb(255 255 255 / 0.16);
+}
+
+[data-fg="dark"] .lgw-tabbar__thumb--refracting-loupe,
+[data-fg="dark"] .lgw-tabbar__thumb--tint {
+  background-color: rgb(12 16 24 / 0.095);
+}
+
+.lgw-tabbar__thumb--ink {
+  background-color: rgb(23 26 33);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.14),
+    0 4px 12px -4px rgb(0 0 0 / 0.3);
+}
+
+/* Compact 96x66 lifted refracting loupe hugging the 60px bar (3px vertical lip) */
+.lgw-loupe {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  z-index: 10;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transform-origin: center center;
+  opacity: 0;
+  width: 96px;
+  height: 66px;
+  margin-left: -48px;
+  margin-top: -33px;
+  box-shadow:
+    0 2px 5px rgb(15 20 32 / 0.08),
+    0 10px 24px -8px rgb(15 20 32 / 0.14);
+}
+
+.lgw-loupe--icons {
+  width: 72px;
+  height: 60px;
+  margin-left: -36px;
+  margin-top: -30px;
+}
+
+.lgw-loupe--text {
+  width: 96px;
+  height: 58px;
+  margin-left: -48px;
+  margin-top: -29px;
+}
+
+/* Tier 2 Aave cross-browser content-path lens */
+.lgw-loupe__content-clip {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  filter: var(--lgw-content-filter, none);
+}
+
+.lgw-loupe__ghost-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 5px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  border: 1px solid var(--lgw-edge-color, rgb(255 255 255 / 0.14));
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* ---- GlassOrb (Circular Action Button with smin Liquid Fusion) ------------ */
+
+.lgw-orb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  will-change: transform;
+  transform-origin: center center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.lgw-orb--sm {
+  width: 52px;
+  height: 52px;
+}
+
+.lgw-orb--md {
+  width: 56px;
+  height: 56px;
+}
+
+.lgw-orb--lg {
+  width: 60px;
+  height: 60px;
+}
+
+/* ---- GlassButton (Capsule CTA Button, >= 44px Touch Target) --------------- */
+
+.lgw-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 20px;
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+.lgw-button--sm {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 0.8125rem;
+}
+
+.lgw-button--lg {
+  min-height: 52px;
+  padding: 0 26px;
+  font-size: 0.9375rem;
+}
+
+/* ---- GlassSwitch (iOS 26/27 UISwitch, >= 44px Touch Target) --------------- */
+
+.lgw-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  min-height: 44px;
+  padding: 6px 0;
+  border: 0;
+  background-color: transparent;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.lgw-switch:focus-visible .lgw-switch__track {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+.lgw-switch__track {
+  position: relative;
+  width: 64px;
+  height: 30px;
+  border-radius: 999px;
+  background-color: rgb(120 124 136 / 0.36);
+  box-shadow:
+    inset 0 1px 2px rgb(0 0 0 / 0.22),
+    0 1px 0 rgb(255 255 255 / 0.16);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgb(255 255 255 / 0.16);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.lgw-switch__track-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-color: #34c759;
+  opacity: 0;
+  will-change: opacity;
+}
+
+.lgw-switch__markers {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  pointer-events: none;
+}
+
+.lgw-switch__marker-on {
+  width: 1.5px;
+  height: 9px;
+  border-radius: 999px;
+  background-color: rgb(255 255 255 / 0.9);
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.lgw-switch[aria-checked="true"] .lgw-switch__marker-on {
+  opacity: 1;
+}
+
+.lgw-switch__marker-off {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  border: 1.5px solid rgb(255 255 255 / 0.62);
+  opacity: 1;
+  transition: opacity 150ms ease;
+}
+
+.lgw-switch[aria-checked="true"] .lgw-switch__marker-off {
+  opacity: 0;
+}
+
+.lgw-switch__thumb {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 36px;
+  height: 24px;
+  margin-left: -18px;
+  margin-top: -12px;
+  border-radius: 999px;
+  background-color: #ffffff;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.2),
+    0 3px 8px rgb(0 0 0 / 0.16);
+  pointer-events: none;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  z-index: 2;
+}
+
+.lgw-switch__loupe {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 50px;
+  height: 38px;
+  margin-left: -25px;
+  margin-top: -19px;
+  border-radius: 999px;
+  pointer-events: none;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  opacity: 0;
+  z-index: 4;
+  box-shadow:
+    0 1px 4px rgb(15 20 32 / 0.08),
+    0 6px 16px -4px rgb(15 20 32 / 0.14);
+}
+
+.lgw-switch__content-clip {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  filter: var(--lgw-content-filter, none);
+}
+
+.lgw-switch__ghost-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 64px;
+  height: 30px;
+  border-radius: 999px;
+  background-color: rgb(120 124 136 / 0.42);
+  border: 1px solid rgb(255 255 255 / 0.22);
+  overflow: hidden;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* ---- GlassSlider (iOS 26/27 UISlider, >= 44px Touch Target) --------------- */
+
+.lgw-slider {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 156px;
+  min-height: 44px;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  border-radius: 999px;
+}
+
+.lgw-slider:focus-visible .lgw-slider__track {
+  outline: 2px solid currentColor;
+  outline-offset: 6px;
+}
+
+.lgw-slider__track {
+  position: relative;
+  width: 156px;
+  height: 6px;
+  border-radius: 999px;
+  background-color: rgb(255 255 255 / 0.28);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow:
+    inset 0 1px 1.5px rgb(0 0 0 / 0.18),
+    0 1px 0 rgb(255 255 255 / 0.18);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+[data-fg="dark"] .lgw-slider__track {
+  background-color: rgb(15 20 32 / 0.22);
+}
+
+.lgw-slider__fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 50%;
+  border-radius: inherit;
+  background-color: #0a84ff;
+  will-change: width;
+}
+
+.lgw-slider__thumb {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 32px;
+  height: 20px;
+  margin-left: -16px;
+  margin-top: -10px;
+  border-radius: 999px;
+  background-color: #ffffff;
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 0.18),
+    0 4px 10px -2px rgb(0 0 0 / 0.14);
+  pointer-events: none;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  z-index: 2;
+}
+
+.lgw-slider__loupe {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 46px;
+  height: 32px;
+  margin-left: -23px;
+  margin-top: -16px;
+  border-radius: 999px;
+  pointer-events: none;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  opacity: 0;
+  z-index: 4;
+  box-shadow:
+    0 1px 4px rgb(15 20 32 / 0.08),
+    0 6px 16px -4px rgb(15 20 32 / 0.14);
+}
+
+.lgw-slider__content-clip {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  filter: var(--lgw-content-filter, none);
+}
+
+.lgw-slider__ghost-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 156px;
+  height: 6px;
+  border-radius: 999px;
+  background-color: rgb(255 255 255 / 0.34);
+  overflow: hidden;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* ---- Tier 3 Accessibility Fallbacks (All 4 Media Queries) ----------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .lgw-loupe,
+  .lgw-tabbar__thumb {
+    transition: opacity 100ms linear;
+  }
+
+  .lgw-switch__loupe,
+  .lgw-slider__loupe {
+    display: none;
+  }
+
+  .lgw-switch__thumb,
+  .lgw-slider__thumb {
+    opacity: 1;
+    transition: transform 90ms linear;
+  }
+
+  .lgw-orb:active,
+  .lgw-button:active {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .lgw-glass-surface {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-color: var(--lgw-body-color, rgb(20 24 34));
+  }
+
+  [data-fg="dark"] .lgw-glass-surface {
+    background-color: rgb(248 249 252);
+  }
+
+  [data-fg="light"] .lgw-glass-surface {
+    background-color: rgb(18 22 32);
+  }
+
+  .lgw-glass-surface[data-lgw-lit]::before,
+  .lgw-glass-surface[data-lgw-lit]::after,
+  .lgw-loupe,
+  .lgw-switch__loupe,
+  .lgw-slider__loupe {
+    display: none;
+  }
+
+  .lgw-switch__track,
+  .lgw-slider__track {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-color: #6b7280;
+    border-color: currentColor;
+  }
+
+  .lgw-switch__thumb,
+  .lgw-slider__thumb {
+    opacity: 1;
+    border: 1px solid rgb(0 0 0 / 0.3);
+  }
+}
+
+@media (prefers-contrast: more) {
+  .lgw-glass-surface {
+    border-width: 2px;
+  }
+
+  [data-fg="light"] .lgw-scrim {
+    background-color: rgb(10 14 22 / 0.88);
+    opacity: 1;
+  }
+
+  [data-fg="dark"] .lgw-scrim {
+    background-color: rgb(255 255 255 / 0.94);
+    opacity: 1;
+  }
+
+  .lgw-switch__loupe,
+  .lgw-slider__loupe {
+    display: none;
+  }
+
+  .lgw-switch__track,
+  .lgw-slider__track {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border: 1.5px solid currentColor;
+  }
+
+  .lgw-switch__thumb,
+  .lgw-slider__thumb {
+    opacity: 1;
+    border: 1px solid rgb(0 0 0 / 0.35);
+  }
+}
+
+@media (forced-colors: active) {
+  .lgw-glass-surface {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-width: 1px;
+    border-color: CanvasText;
+    background-color: Canvas;
+  }
+
+  .lgw-tab.is-active {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  .lgw-glass-surface[data-lgw-lit]::before,
+  .lgw-glass-surface[data-lgw-lit]::after,
+  .lgw-scrim,
+  .lgw-loupe,
+  .lgw-switch__loupe,
+  .lgw-slider__loupe {
+    display: none;
+  }
+
+  .lgw-switch__track,
+  .lgw-slider__track {
+    background-color: ButtonFace;
+    border: 2px solid ButtonText;
+  }
+
+  .lgw-switch__track-fill,
+  .lgw-slider__fill {
+    background-color: Highlight;
+  }
+
+  .lgw-switch__thumb,
+  .lgw-slider__thumb {
+    opacity: 1;
+    background-color: ButtonText;
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "name": "liquid-glass-web",
+  "version": "0.1.0",
+  "description": "Physically grounded Apple iOS 26/27 Liquid Glass material and interactive component system for the web.",
+  "license": "MIT",
+  "author": "Pavlo Nekrasov",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pavlonekrasov/liquid-glass-web.git",
+    "directory": "packages/liquid-glass-web"
+  },
+  "homepage": "https://github.com/pavlonekrasov/liquid-glass-web",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "liquid-glass",
+    "ios-26",
+    "ios-27",
+    "apple-hig",
+    "refraction",
+    "snell",
+    "fresnel",
+    "cauchy-dispersion",
+    "webgl2",
+    "html-in-canvas",
+    "react",
+    "design-engineering"
+  ],
+  "type": "module",
+  "sideEffects": [
+    "./dist/styles.css",
+    "**/*.css"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./core": {
+      "import": {
+        "types": "./dist/core/index.d.ts",
+        "default": "./dist/core/index.js"
+      },
+      "require": {
+        "types": "./dist/core/index.d.cts",
+        "default": "./dist/core/index.cjs"
+      }
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "motion": ">=11.0.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "motion": "^12.0.0",
+    "publint": "^0.3.12",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.3"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.mjs",
+    "publint": "publint --strict"
+  }
+}
