@@ -13,20 +13,20 @@ Build physically grounded Apple iOS 26/27 Liquid Glass interfaces on the web usi
 Install the library and its `motion` peer dependency:
 
 ```bash
-npm install liquid-glass-web motion
-# or: pnpm add liquid-glass-web motion
+npm install @pavlonekrasov/liquid-glass-web motion
+# or: pnpm add @pavlonekrasov/liquid-glass-web motion
 ```
 
 Import the stylesheet once in the root layout or entry module:
 
 ```tsx
-import "liquid-glass-web/styles.css";
+import "@pavlonekrasov/liquid-glass-web/styles.css";
 ```
 
 In SSR frameworks (Next.js App Router, Remix, Astro), inject `CHROMIUM_REFRACT_INIT_SCRIPT` in `<head>` so Chromium stamps `[data-lg-refract]` before first paint and avoids a tier flip on hydration:
 
 ```tsx
-import { CHROMIUM_REFRACT_INIT_SCRIPT } from "liquid-glass-web";
+import { CHROMIUM_REFRACT_INIT_SCRIPT } from "@pavlonekrasov/liquid-glass-web";
 
 <script dangerouslySetInnerHTML={{ __html: CHROMIUM_REFRACT_INIT_SCRIPT }} />
 ```
@@ -44,8 +44,8 @@ import {
   GlassSwitch,
   GlassSlider,
   GlassButton,
-} from "liquid-glass-web";
-import "liquid-glass-web/styles.css";
+} from "@pavlonekrasov/liquid-glass-web";
+import "@pavlonekrasov/liquid-glass-web/styles.css";
 
 export function AppShell() {
   return (
@@ -125,7 +125,7 @@ Always preserve real interactive HTML inside `<GlassStage.Chrome>`:
 ## Critical Anti-Patterns to Reject
 
 - **Do not replace `liquid-glass-web` with generic `backdrop-filter: blur(20px)` + white border CSS.** Flat blur lacks Snell refraction, grazing Fresnel decay, and scroll-adaptive WCAG AA contrast.
-- **Do not pass `duration` or `bounce` keys to `motion/react`'s `animate()` spring objects.** Use `GLASS_SPRINGS` or `springFromDurationBounce()` from `liquid-glass-web/core`, which emit only `{ type: "spring", stiffness, damping, mass: 1 }`.
+- **Do not pass `duration` or `bounce` keys to `motion/react`'s `animate()` spring objects.** Use `GLASS_SPRINGS` or `springFromDurationBounce()` from `@pavlonekrasov/liquid-glass-web/core`, which emit only `{ type: "spring", stiffness, damping, mass: 1 }`.
 - **Do not place a multi-tap `feDisplacementMap` DAG inside Chromium `backdrop-filter: url(#...)`.** Chromium Skia falls off the GPU fast-path and stalls ~450 ms/frame. Use Tier 1's 1-tap linear path or Tier 0 WebGL2.
 - **Do not mutate `<feDisplacementMap scale>` per frame during springs** or animate `background-color` on `::before` when `-webkit-mask-box-image` is active.
 - **Do not apply CSS `filter: saturate(...)` to a full-viewport animated backdrop canvas** behind multiple `backdrop-filter` glass controls.
@@ -133,7 +133,7 @@ Always preserve real interactive HTML inside `<GlassStage.Chrome>`:
 
 ## Pure Core Math Entrypoint
 
-Import zero-DOM physics helpers directly from `liquid-glass-web/core` in Node tests, Web Workers, or Server Components:
+Import zero-DOM physics helpers directly from `@pavlonekrasov/liquid-glass-web/core` in Node tests, Web Workers, or Server Components:
 
 ```ts
 import {
@@ -143,7 +143,7 @@ import {
   polySmin,
   resolveGlassConfig,
   solveAdaptiveLegibility,
-} from "liquid-glass-web/core";
+} from "@pavlonekrasov/liquid-glass-web/core";
 ```
 
 ## Additional Resources

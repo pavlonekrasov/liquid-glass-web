@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "dialkit": "^2.2.1",
-    "liquid-glass-web": "workspace:*",
+    "@pavlonekrasov/liquid-glass-web": "workspace:*",
     "motion": "^12.0.0",
     "next": "^16.0.0",
     "react": "^19.1.0",

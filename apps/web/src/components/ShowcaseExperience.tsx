@@ -15,7 +15,7 @@ import {
   type GlassTabItem,
   type GlassVariant,
   type ResolvedGlassTier,
-} from "liquid-glass-web";
+} from "@pavlonekrasov/liquid-glass-web";
 import {
   CodeIcon,
   HeartIcon,
@@ -40,8 +40,8 @@ const QUICKSTART_SNIPPET = `import {
   GlassOrb,
   GlassSwitch,
   GlassSlider,
-} from "liquid-glass-web";
-import "liquid-glass-web/styles.css";
+} from "@pavlonekrasov/liquid-glass-web";
+import "@pavlonekrasov/liquid-glass-web/styles.css";
 
 <GlassStage engine="auto">
   <YourScrollablePageContent />
@@ -115,7 +115,7 @@ export function ShowcaseExperience() {
 
   const copyInstall = async () => {
     try {
-      await navigator.clipboard.writeText("npm install liquid-glass-web motion");
+      await navigator.clipboard.writeText("npm install @pavlonekrasov/liquid-glass-web motion");
       setCopiedInstall(true);
       window.setTimeout(() => setCopiedInstall(false), 1800);
     } catch {
@@ -177,7 +177,7 @@ export function ShowcaseExperience() {
                 Launch DialKit Material Lab
               </Link>
               <button type="button" className="sc-install-cmd" onClick={copyInstall}>
-                <span>npm install liquid-glass-web motion</span>
+                <span>npm install @pavlonekrasov/liquid-glass-web motion</span>
                 <span className="sc-install-cmd__badge">{copiedInstall ? "Copied" : "Copy"}</span>
               </button>
             </div>

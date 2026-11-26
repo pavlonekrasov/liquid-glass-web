@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { CHROMIUM_REFRACT_INIT_SCRIPT } from "liquid-glass-web";
-import "liquid-glass-web/styles.css";
+import { CHROMIUM_REFRACT_INIT_SCRIPT } from "@pavlonekrasov/liquid-glass-web";
+import "@pavlonekrasov/liquid-glass-web/styles.css";
 import "dialkit/styles.css";
 import "./globals.css";
 

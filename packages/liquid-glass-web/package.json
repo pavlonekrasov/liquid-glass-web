@@ -1,9 +1,12 @@
 {
-  "name": "liquid-glass-web",
+  "name": "@pavlonekrasov/liquid-glass-web",
   "version": "0.1.0",
   "description": "Physically grounded Apple iOS 26/27 Liquid Glass material and interactive component system for the web.",
   "license": "MIT",
   "author": "Pavlo Nekrasov",
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/pavlonekrasov/liquid-glass-web.git",
@@ -60,7 +63,8 @@
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "peerDependencies": {
     "motion": ">=11.0.0",

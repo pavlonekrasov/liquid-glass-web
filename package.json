@@ -6,13 +6,13 @@
   "packageManager": "pnpm@10.28.2",
   "scripts": {
     "dev": "pnpm --filter @liquid-glass-web/web dev",
-    "build:pkg": "pnpm --filter liquid-glass-web build",
+    "build:pkg": "pnpm --filter @pavlonekrasov/liquid-glass-web build",
     "build:web": "pnpm --filter @liquid-glass-web/web build",
     "build": "pnpm run build:pkg && pnpm run build:web",
-    "test": "pnpm --filter liquid-glass-web test",
+    "test": "pnpm --filter @pavlonekrasov/liquid-glass-web test",
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint . --max-warnings 0",
-    "publint": "pnpm --filter liquid-glass-web publint",
+    "publint": "pnpm --filter @pavlonekrasov/liquid-glass-web publint",
     "verify:visuals": "node scripts/verify-visuals.mjs",
     "verify:firefox": "node scripts/verify-firefox.mjs"
   },

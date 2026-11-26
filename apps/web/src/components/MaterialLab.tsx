@@ -18,7 +18,7 @@ import {
   type GlassTabItem,
   type GlassVariant,
   type ResolvedGlassTier,
-} from "liquid-glass-web";
+} from "@pavlonekrasov/liquid-glass-web";
 import { CopyCodeDrawer, type ExportableLabConfig } from "./CopyCodeDrawer";
 import {
   CodeIcon,

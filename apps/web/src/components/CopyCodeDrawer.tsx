@@ -5,7 +5,7 @@ import type {
   GlassEnginePreference,
   GlassShapeProfile,
   GlassVariant,
-} from "liquid-glass-web";
+} from "@pavlonekrasov/liquid-glass-web";
 
 export interface ExportableLabConfig {
   variant: GlassVariant;
@@ -63,8 +63,8 @@ export function generateLabJsx(c: ExportableLabConfig): string {
   GlassOrb,
   GlassSwitch,
   GlassSlider,
-} from "liquid-glass-web";
-import "liquid-glass-web/styles.css";
+} from "@pavlonekrasov/liquid-glass-web";
+import "@pavlonekrasov/liquid-glass-web/styles.css";
 
 export function Example() {
   return (

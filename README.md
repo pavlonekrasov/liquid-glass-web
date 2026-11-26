@@ -8,7 +8,7 @@
 
 ## Tri-Channel Adoption
 
-1. **npm Library (`packages/liquid-glass-web`):** Tree-shakeable React primitives (`liquid-glass-web`), zero-DOM pure physics math (`liquid-glass-web/core`), and scoped CSS (`liquid-glass-web/styles.css`).
+1. **npm Library (`packages/liquid-glass-web`):** Tree-shakeable React primitives (`@pavlonekrasov/liquid-glass-web`), zero-DOM pure physics math (`@pavlonekrasov/liquid-glass-web/core`), and scoped CSS (`@pavlonekrasov/liquid-glass-web/styles.css`).
 2. **Editorial Showcase & DialKit Material Lab (`apps/web`):** Live scrollable UI demos (`/`) and an interactive optical playground (`/lab`) powered by **DialKit** with one-click **Copy JSX & Props** export.
 3. **Installable Agent Skill (`skills/liquid-glass-web/SKILL.md`):** Teaches coding agents (Claude Code, Cursor, Codex, Antigravity) the exact public API, semantic presets, `smin` fusion rules, and accessibility guardrails.
 
@@ -17,9 +17,9 @@
 ## Quick Start
 
 ```bash
-npm install liquid-glass-web motion
+npm install @pavlonekrasov/liquid-glass-web motion
 # or
-pnpm add liquid-glass-web motion
+pnpm add @pavlonekrasov/liquid-glass-web motion
 ```
 
 ```tsx
@@ -30,8 +30,8 @@ import {
   GlassOrb,
   GlassSwitch,
   GlassSlider,
-} from "liquid-glass-web";
-import "liquid-glass-web/styles.css";
+} from "@pavlonekrasov/liquid-glass-web";
+import "@pavlonekrasov/liquid-glass-web/styles.css";
 
 export function NavigationShell() {
   return (
@@ -68,7 +68,7 @@ export function NavigationShell() {
 For SSR frameworks (Next.js App Router, Remix), stamp Chromium's Tier 1 capability attribute before first paint in `<head>`:
 
 ```tsx
-import { CHROMIUM_REFRACT_INIT_SCRIPT } from "liquid-glass-web";
+import { CHROMIUM_REFRACT_INIT_SCRIPT } from "@pavlonekrasov/liquid-glass-web";
 
 <script dangerouslySetInnerHTML={{ __html: CHROMIUM_REFRACT_INIT_SCRIPT }} />
 ```

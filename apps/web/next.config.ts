@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["liquid-glass-web"],
+  transpilePackages: ["@pavlonekrasov/liquid-glass-web"],
 };
 
 export default nextConfig;

@@ -25,7 +25,7 @@ liquid-glass-web/
 
 ## Key Subsystems
 
-### 1. Pure Zero-DOM Core (`liquid-glass-web/core`)
+### 1. Pure Zero-DOM Core (`@pavlonekrasov/liquid-glass-web/core`)
 All optical, colorimetric, geometric, and spring calculations have zero DOM or React dependencies so every physical invariant runs deterministically in Node unit tests and builds cleanly for SSR / RSC environments:
 - **`optics.ts`**: Single-interface Snell refraction with strict `h(0) = 0`, fold-free Jacobian guard (`min(1 + M * d') >= 0.20`), lossless quadrant-mirrored 9-slice displacement tile generator, 3D bezel-normal dual-bounce Schlick Fresnel with `solveDisplayGain` DPR calibration (`1×–3×`), Beer–Lambert absorption, and 5-band continuous spectral weights summing to `(1, 1, 1)`.
 - **`overlay.ts`**: Paints nine-slice Fresnel and Beer–Lambert fields from opaque tiles in exact overlap order (`face -> top/bottom -> side bands -> corners`) so fractional DPRs (`1.25×`, `1.5×`, `1.75×`) produce zero seam hairlines.
