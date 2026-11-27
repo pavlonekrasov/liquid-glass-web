@@ -13,8 +13,6 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "eslint . --max-warnings 0",
     "publint": "pnpm --filter @pavlonekrasov/liquid-glass-web publint",
-    "verify:visuals": "node scripts/verify-visuals.mjs",
-    "verify:firefox": "node scripts/verify-firefox.mjs",
     "deploy:site": "vercel deploy --prod"
   },
   "devDependencies": {

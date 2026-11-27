@@ -20,3 +20,6 @@ apps/web/public/textures/paper-scan.jpg
 
 # Internal verification notes
 docs/verification.md
+
+# Local browser verification scripts
+/scripts/
