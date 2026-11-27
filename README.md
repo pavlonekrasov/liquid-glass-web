@@ -129,16 +129,6 @@ pnpm publint         # Strict npm exports & packaging validation
 pnpm dev             # Launch interactive Showcase (/) and DialKit Material Lab (/lab)
 ```
 
-Headless multi-DPR (`1×`, `1.25×`, `1.5×`, `2×`) browser verification:
-
-```bash
-# Installed Chrome (Tier 0 HTML-in-Canvas + Tier 1 SVG Backdrop + Tier 2)
-CHANNEL=chrome node scripts/verify-visuals.mjs
-
-# Installed Firefox (Gecko WebDriver BiDi — automatic Tier 2 Aave Content-Path)
-pnpm verify:firefox
-```
-
 See [docs/architecture.md](docs/architecture.md) for deep technical details.
 
 ---
