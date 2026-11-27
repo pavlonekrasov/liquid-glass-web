@@ -46,6 +46,6 @@ Everything that decides how the glass looks and moves lives here, as plain funct
 
 ## Shapes that merge (`GlassContainer`)
 
-Glass shapes inside the same `<GlassContainer>` act as one group. When they get within `mergeRadius` pixels of each other, they melt together into a single piece of glass, like the search button joining the tab bar in iOS. On Chrome 157+ this runs directly inside the stage's WebGL shader; on SVG tiers (`svg-backdrop` and `svg-content`) a dedicated WebGL2 union surface (`unionWebgl.ts`) and synchronous inline SVG `<mask>` keep the fused rim, shadow, and refraction smooth at full screen density during motion.
+Glass shapes inside the same `<GlassContainer>` act as one group. When they get within `mergeRadius` pixels of each other, they melt together into a single piece of glass, like the search button joining the tab bar in iOS. On Chrome 157+ this runs inside the stage's WebGL shader; on other browsers a small dedicated WebGL layer keeps the merged shape sharp and smooth while it moves.
 
 The group also shares one decision about text color. The tab bar checks what's behind it and chooses light or dark text, and every other shape in the group follows, so the whole group always matches.
