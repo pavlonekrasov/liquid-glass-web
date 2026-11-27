@@ -11,7 +11,7 @@ Most "glass" on the web is a blurred box. `liquid-glass-web` bends the content b
 ## What's included
 
 1. **npm package (`packages/liquid-glass-web`):** React components (`@pavlonekrasov/liquid-glass-web`), their styles (`@pavlonekrasov/liquid-glass-web/styles.css`), and the underlying math on its own, with no React or DOM (`@pavlonekrasov/liquid-glass-web/core`).
-2. **Demo site & Material Lab ([live](https://liquidglass.pavlonekrasov.com)):** See the components in a real scrolling page ([`/`](https://liquidglass.pavlonekrasov.com)), then tune every setting with sliders in the [Material Lab](https://liquidglass.pavlonekrasov.com/lab) and copy the JSX.
+2. **Demo site & Material Lab ([live](https://liquidglass.pavlonekrasov.com)):** See the components in a real scrolling page ([`/`](https://liquidglass.pavlonekrasov.com)), then tune every setting with sliders in the [Material Lab](https://liquidglass.pavlonekrasov.com/lab) and copy the TSX ot JSX.
 3. **Agent Skill (`skills/liquid-glass-web/SKILL.md`):** Teaches coding agents (Claude Code, Cursor, Codex, Antigravity) how to use the library correctly.
 
 ---
