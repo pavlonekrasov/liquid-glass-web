@@ -27,4 +27,6 @@ import "@pavlonekrasov/liquid-glass-web/styles.css";
 
 Pure zero-DOM physics utilities are available at `@pavlonekrasov/liquid-glass-web/core`.
 
-See the [repository README](https://github.com/pavlonekrasov/liquid-glass-web) for full documentation, Material Lab, and Agent Skill.
+Try it live at [liquidglass.pavlonekrasov.com](https://liquidglass.pavlonekrasov.com) and tune every parameter in the [Material Lab](https://liquidglass.pavlonekrasov.com/lab).
+
+See the [repository README](https://github.com/pavlonekrasov/liquid-glass-web) for full documentation and the Agent Skill.

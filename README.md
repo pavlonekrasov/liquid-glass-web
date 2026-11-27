@@ -2,6 +2,8 @@
 
 > Physically grounded **Apple iOS 26/27 Liquid Glass** material and interactive component system for the web.
 
+**Live demo:** [liquidglass.pavlonekrasov.com](https://liquidglass.pavlonekrasov.com) · **Material Lab:** [liquidglass.pavlonekrasov.com/lab](https://liquidglass.pavlonekrasov.com/lab)
+
 `liquid-glass-web` is not a `backdrop-filter: blur()` approximation or a single-browser demo. It combines real `h(0) = 0` Snell refraction, 11-band continuous Cauchy dispersion, 3D bezel-normal dual-bounce Schlick Fresnel, Beer–Lambert volumetric absorption, `GlassContainer` smooth-min (`smin`) liquid meniscus fusion, Apple SwiftUI `Spring(duration:bounce:)` physics, and live scroll-adaptive WCAG AA contrast across a 4-tier progressive enhancement pipeline.
 
 ---
@@ -9,7 +11,7 @@
 ## Tri-Channel Adoption
 
 1. **npm Library (`packages/liquid-glass-web`):** Tree-shakeable React primitives (`@pavlonekrasov/liquid-glass-web`), zero-DOM pure physics math (`@pavlonekrasov/liquid-glass-web/core`), and scoped CSS (`@pavlonekrasov/liquid-glass-web/styles.css`).
-2. **Editorial Showcase & DialKit Material Lab (`apps/web`):** Live scrollable UI demos (`/`) and an interactive optical playground (`/lab`) powered by **DialKit** with one-click **Copy JSX & Props** export.
+2. **Showcase & DialKit Material Lab ([live](https://liquidglass.pavlonekrasov.com)):** Live scrollable UI demos ([`/`](https://liquidglass.pavlonekrasov.com)) and an interactive optical playground ([`/lab`](https://liquidglass.pavlonekrasov.com/lab)) powered by **DialKit** with one-click **Copy JSX & Props** export.
 3. **Installable Agent Skill (`skills/liquid-glass-web/SKILL.md`):** Teaches coding agents (Claude Code, Cursor, Codex, Antigravity) the exact public API, semantic presets, `smin` fusion rules, and accessibility guardrails.
 
 ---
@@ -137,13 +139,13 @@ CHANNEL=chrome node scripts/verify-visuals.mjs
 pnpm verify:firefox
 ```
 
-See [docs/architecture.md](docs/architecture.md) and [docs/verification.md](docs/verification.md) for deep technical details and measured numbers.
+See [docs/architecture.md](docs/architecture.md) for deep technical details.
 
 ---
 
 ## Credits & Inspirations
 
-- **[DialKit](https://dialkit.dev)** by **[Josh Puckett](https://github.com/joshpuckett/dialkit)** — live parameter tuning panel powering the interactive Material Lab (`/lab`).
+- **[DialKit](https://dialkit.dev)** by **[Josh Puckett](https://github.com/joshpuckett/dialkit)** — live parameter tuning panel powering the interactive [Material Lab](https://liquidglass.pavlonekrasov.com/lab).
 - **Apple Human Interface Guidelines / WWDC 2025 Liquid Glass** — optical material language, `GlassEffectContainer` liquid meniscus merging, `.interactive()` touch illumination, and `Spring(duration:bounce:)` fluid motion.
 - **Aave** — cross-browser SVG `filter: url()` content-path refraction technique adapted for Tier 2 Safari/Firefox fallback.
 

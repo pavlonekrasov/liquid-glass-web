@@ -19,8 +19,7 @@ liquid-glass-web/
 ├── scripts/
 │   └── verify-visuals.mjs # Headless installed-Chrome 1x/1.25x/1.5x/2x optical & perf harness
 └── docs/
-    ├── architecture.md
-    └── verification.md
+    └── architecture.md
 ```
 
 ## Key Subsystems
