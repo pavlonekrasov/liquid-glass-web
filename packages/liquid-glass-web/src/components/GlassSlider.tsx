@@ -158,7 +158,7 @@ export function GlassSlider({
       loupeThickness: Math.min(15, baseConfig.loupeThickness),
       loupeDispersion: baseConfig.loupeDispersion * 0.85,
       edgeRingAlpha: Math.max(0.14, baseConfig.edgeRingAlpha),
-      edgeRingLight: true,
+      edgeRingLight: baseConfig.edgeRingLight,
     }),
     [baseConfig],
   );
@@ -326,18 +326,23 @@ export function GlassSlider({
   }, [useContentPath, useHic]);
 
   useEffect(() => {
-    if (!stage.hicBridge) return;
-    paint();
-    const raf = requestAnimationFrame(paint);
+    const bridge = stage.hicBridge;
+    if (!bridge) return;
     const onResize = () => paint();
     window.addEventListener("resize", onResize);
     return () => {
-      cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
-      stage.hicBridge?.removeSurface(`slider-${instanceId}`);
-      stage.hicBridge?.removeLoupe(`slider-loupe-${instanceId}`);
+      bridge.removeSurface(`slider-${instanceId}`);
+      bridge.removeLoupe(`slider-loupe-${instanceId}`);
     };
-  }, [stage.hicBridge, stage.layoutVersion, instanceId, paint]);
+  }, [stage.hicBridge, instanceId, paint]);
+
+  useEffect(() => {
+    if (!stage.hicBridge) return;
+    paint();
+    const raf = requestAnimationFrame(paint);
+    return () => cancelAnimationFrame(raf);
+  }, [stage.hicBridge, stage.layoutVersion, paint]);
 
   useEffect(() => {
     if (dragRef.current.active) return;
@@ -450,7 +455,6 @@ export function GlassSlider({
     if (disabled || e.button !== 0) return;
     lastSourceRef.current = "pointer";
     e.currentTarget.setPointerCapture(e.pointerId);
-    e.currentTarget.focus();
     setPressed(true);
     dragRef.current = {
       active: true,

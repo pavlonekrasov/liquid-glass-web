@@ -138,7 +138,7 @@ export function GlassSwitch({
       loupeThickness: Math.min(16, baseConfig.loupeThickness),
       loupeDispersion: baseConfig.loupeDispersion * 0.85,
       edgeRingAlpha: Math.max(0.14, baseConfig.edgeRingAlpha),
-      edgeRingLight: true,
+      edgeRingLight: baseConfig.edgeRingLight,
     }),
     [baseConfig],
   );
@@ -312,18 +312,23 @@ export function GlassSwitch({
   }, [useContentPath, useHic]);
 
   useEffect(() => {
-    if (!stage.hicBridge) return;
-    paint();
-    const raf = requestAnimationFrame(paint);
+    const bridge = stage.hicBridge;
+    if (!bridge) return;
     const onResize = () => paint();
     window.addEventListener("resize", onResize);
     return () => {
-      cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
-      stage.hicBridge?.removeSurface(`switch-${instanceId}`);
-      stage.hicBridge?.removeLoupe(`switch-loupe-${instanceId}`);
+      bridge.removeSurface(`switch-${instanceId}`);
+      bridge.removeLoupe(`switch-loupe-${instanceId}`);
     };
-  }, [stage.hicBridge, stage.layoutVersion, instanceId, paint]);
+  }, [stage.hicBridge, instanceId, paint]);
+
+  useEffect(() => {
+    if (!stage.hicBridge) return;
+    paint();
+    const raf = requestAnimationFrame(paint);
+    return () => cancelAnimationFrame(raf);
+  }, [stage.hicBridge, stage.layoutVersion, paint]);
 
   useEffect(() => {
     if (dragRef.current.active) return;
@@ -457,6 +462,18 @@ export function GlassSwitch({
       originCx: live.current.cx,
       moved: false,
     };
+    stopAnims();
+    if (!stage.reducedMotion) {
+      anims.current = [
+        animate(live.current.lift, 1, {
+          ...GLASS_SPRINGS.loupeLift,
+          onUpdate: (v) => {
+            live.current.lift = v;
+            paint();
+          },
+        }),
+      ];
+    }
   };
 
   const onPointerMove = (e: PointerEvent<HTMLButtonElement>) => {
@@ -468,8 +485,20 @@ export function GlassSwitch({
     if (!d.moved && Math.abs(dx) < 3) return;
     if (!d.moved) {
       d.moved = true;
-      stopAnims();
-      live.current.lift = 1;
+      if (stage.reducedMotion) {
+        stopAnims();
+        live.current.lift = 0;
+      } else if (anims.current.length === 0 && live.current.lift < 0.99) {
+        anims.current = [
+          animate(live.current.lift, 1, {
+            ...GLASS_SPRINGS.loupeLift,
+            onUpdate: (v) => {
+              live.current.lift = v;
+              paint();
+            },
+          }),
+        ];
+      }
     }
     const rawCx = d.originCx + dx;
     const cx =

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   bakePolySminOptics,
+  buildCapsuleDisplacementMap,
   buildPolySminDisplacementMap,
   buildPolySminPath,
   GLASS_PHYSICS,
@@ -160,6 +161,83 @@ test("GlassContainer polySmin meniscus kisses cleanly at gap = k/2", () => {
   assert.ok(
     optTile.data[barMidIdx] < 30 && optTile.data[barMidIdx + 3] > 20,
     "bar flat interior preserves translucent dark Beer–Lambert plateau",
+  );
+
+  // Unified pure-SDF outer shadow must have ZERO dark opaque fringe outside the top rim (no destination-out artifact)
+  const paddedTile = bakePolySminOptics(428, 62, bar, orbFused, k, {
+    optics: {
+      bezel: cfg.bezel,
+      thickness: cfg.thickness,
+      ior: cfg.ior,
+      profile: cfg.profile,
+      minJacobian: cfg.minJacobian,
+    },
+    lighting: {
+      angleDeg: cfg.lightAngleDeg,
+      lift: cfg.lightLift,
+      exponent: cfg.lightExponent,
+      backBounce: cfg.backBounce,
+      highlight: cfg.highlightColor,
+      shade: cfg.shadeColor,
+    },
+    bodyRgb: { r: 250, g: 251, b: 254 },
+    bodyAlpha: 0.34,
+    rimAlphaMin: cfg.rimAlphaMin,
+    scrimRgb: { r: 250, g: 251, b: 254 },
+    scrimAlpha: 0,
+    edgeRgb: { r: 15, g: 18, b: 26 },
+    edgeAlpha: 0.14,
+    borderWidth: 1,
+    shadowAlpha: 0.06,
+    padCss: 28,
+    scale: 1,
+  });
+  // Pixel 1px ABOVE the bar's top rim (y = 28 - 2 = 26) must have whisper-light shadow only (alpha <= 12, never 37.5% = 96!)
+  const aboveTopIdx = (26 * paddedTile.width + (28 + 120)) * 4;
+  assert.ok(
+    paddedTile.data[aboveTopIdx + 3] <= 12,
+    `zero dark destination-out fringe above top rim (got alpha ${paddedTile.data[aboveTopIdx + 3]})`,
+  );
+  // Pixel 2px BELOW the bar's bottom rim (y = 28 + 62 + 2 = 92) has soft smooth contact shadow
+  const belowBotIdx = (92 * paddedTile.width + (28 + 120)) * 4;
+  assert.ok(
+    paddedTile.data[belowBotIdx + 3] >= 4 && paddedTile.data[belowBotIdx + 3] <= 24,
+    `soft outer contact shadow below bottom rim (got alpha ${paddedTile.data[belowBotIdx + 3]})`,
+  );
+
+  // Single-capsule motion displacement tile encodes transparent alpha outside capsule and neutral 128 inside center
+  const orbMotion = buildCapsuleDisplacementMap(60, 60, 30, {
+    bezel: cfg.bezel,
+    thickness: cfg.thickness,
+    ior: cfg.ior,
+    profile: cfg.profile,
+    minJacobian: cfg.minJacobian,
+  });
+  assert.ok(orbMotion.dMax > 0, "motion orb tile has positive Snell dMax");
+  assert.equal(orbMotion.tile.data[3], 0, "outer corner of orb motion tile is transparent");
+  const orbCenter = (30 * orbMotion.tile.width + 30) * 4;
+  assert.equal(orbMotion.tile.data[orbCenter], NEUTRAL, "orb motion center R is exact neutral 128");
+  assert.equal(orbMotion.tile.data[orbCenter + 3], 255, "orb motion center alpha is opaque");
+
+  // Top rim on Paper stays bright white (Fresnel painted OVER 1px border, matching CSS stacking order)
+  const paperTopRimIdx = (28 * paddedTile.width + (28 + 120)) * 4;
+  assert.ok(
+    paddedTile.data[paperTopRimIdx] > 215 && paddedTile.data[paperTopRimIdx + 3] > 140,
+    `Paper top rim stays luminous white (got rgb=${paddedTile.data[paperTopRimIdx]}, a=${paddedTile.data[paperTopRimIdx + 3]})`,
+  );
+
+  // Non-capsule rounded rectangles (r < hh) emit exact corner arcs + vertical side segments
+  const cardA = { cx: 60, cy: 40, hw: 50, hh: 30, r: 14 };
+  const cardB = { cx: 164, cy: 40, hw: 50, hh: 30, r: 14 };
+  const cardUnion = buildPolySminPath(cardA, cardB, 22);
+  assert.ok(cardUnion !== null, "rounded-rect cards fuse cleanly");
+  assert.ok(
+    cardUnion.path.includes("A 14 14 0 0 1 10 56 L 10 24 A 14 14 0 0 1 24 10"),
+    "rounded-rect left end emits two r=14 corner arcs with straight vertical edge (no distorted ellipse)",
+  );
+  assert.ok(
+    cardUnion.path.includes("A 14 14 0 0 1 214 24 L 214 56 A 14 14 0 0 1 200 70"),
+    "rounded-rect right end emits two r=14 corner arcs with straight vertical edge",
   );
 });
 

@@ -11,13 +11,16 @@ liquid-glass-web/
 │   │   ├── core/          # The math: light, color, shapes, readability and springs (no React, no DOM)
 │   │   ├── engines/       # The different ways of drawing the glass, and picking one per browser
 │   │   ├── primitives/    # The building blocks: GlassStage, GlassContainer, GlassSurface
-│   │   ├── components/    # Ready-made controls: GlassTabBar, GlassOrb, GlassSwitch, GlassSlider, GlassButton
+│   │   ├── components/    # Ready-made controls: GlassTabBar, GlassOrb, GlassSwitch, GlassSlider, GlassButton, GlassScrollEdge
 │   │   └── styles/        # The stylesheet, shipped as styles.css
 │   └── tests/             # Unit tests that run in Node
 ├── apps/web/              # The demo site (/) and Material Lab (/lab)
 ├── skills/liquid-glass-web/
 │   ├── SKILL.md           # The Agent Skill for coding agents
 │   └── references/        # Extra detail the skill can look up
+├── scripts/
+│   ├── verify-visuals.mjs # Screenshot checks in Chrome at several screen densities
+│   └── verify-firefox.mjs # The same kind of checks in Firefox
 └── docs/
     └── architecture.md    # This file
 ```
@@ -43,6 +46,6 @@ Everything that decides how the glass looks and moves lives here, as plain funct
 
 ## Shapes that merge (`GlassContainer`)
 
-Glass shapes inside the same `<GlassContainer>` act as one group. When they get within `mergeRadius` pixels of each other, they melt together into a single piece of glass, like the search button joining the tab bar in iOS.
+Glass shapes inside the same `<GlassContainer>` act as one group. When they get within `mergeRadius` pixels of each other, they melt together into a single piece of glass, like the search button joining the tab bar in iOS. On Chrome 157+ this runs directly inside the stage's WebGL shader; on SVG tiers (`svg-backdrop` and `svg-content`) a dedicated WebGL2 union surface (`unionWebgl.ts`) and synchronous inline SVG `<mask>` keep the fused rim, shadow, and refraction smooth at full screen density during motion.
 
 The group also shares one decision about text color. The tab bar checks what's behind it and chooses light or dark text, and every other shape in the group follows, so the whole group always matches.

@@ -101,13 +101,19 @@ export function GlassButton({
   const scaleAnimRef = useRef<AnimationPlaybackControls | null>(null);
   const glowAnimRef = useRef<AnimationPlaybackControls | null>(null);
 
+  const { registerUnionElement, notifyUnionMove } = container;
+
   const paintBtn = useCallback(
     (syncChrome = false) => {
       const btn = btnRef.current;
       if (btn) {
         btn.style.transform = `scale(${live.current.scale.toFixed(4)})`;
       }
-      if (!stage.hicBridge || !btn) return;
+      if (!stage.hicBridge) {
+        notifyUnionMove();
+        return;
+      }
+      if (!btn) return;
       const r = btn.getBoundingClientRect();
       if (r.width <= 4 || r.height <= 4) {
         stage.hicBridge.removeSurface(`btn-${btnId}`);
@@ -139,6 +145,7 @@ export function GlassButton({
       config.pressCompression,
       container.mergeRadius,
       container.morphGroup,
+      notifyUnionMove,
       stage.hicBridge,
     ],
   );
@@ -186,8 +193,6 @@ export function GlassButton({
     });
   }, [pressed, config.interactive, config.pressCompression, stage.reducedMotion, paintBtn]);
 
-  const { registerUnionElement, notifyUnionMove } = container;
-
   useEffect(() => {
     if (useHic || frostOnly || container.mergeRadius <= 0) return;
     const key = `btn-${btnId}`;
@@ -200,17 +205,22 @@ export function GlassButton({
   }, [useHic, frostOnly, container.mergeRadius, btnId, registerUnionElement, notifyUnionMove]);
 
   useEffect(() => {
-    if (!stage.hicBridge) return;
-    paintBtn(false);
-    const raf = requestAnimationFrame(() => paintBtn(false));
+    const bridge = stage.hicBridge;
+    if (!bridge) return;
     const onResize = () => paintBtn(false);
     window.addEventListener("resize", onResize);
     return () => {
-      cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
-      stage.hicBridge?.removeSurface(`btn-${btnId}`);
+      bridge.removeSurface(`btn-${btnId}`);
     };
-  }, [stage.hicBridge, stage.layoutVersion, btnId, paintBtn]);
+  }, [stage.hicBridge, btnId, paintBtn]);
+
+  useEffect(() => {
+    if (!stage.hicBridge) return;
+    paintBtn(false);
+    const raf = requestAnimationFrame(() => paintBtn(false));
+    return () => cancelAnimationFrame(raf);
+  }, [stage.hicBridge, stage.layoutVersion, paintBtn]);
 
   useEffect(
     () => () => {

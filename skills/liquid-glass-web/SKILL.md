@@ -1,7 +1,7 @@
 ---
 name: liquid-glass-web
-description: This skill should be used when the user asks to "add liquid glass", "build Apple iOS 26/27 glass UI", "use liquid-glass-web", "create a GlassTabBar", "fuse glass surfaces with GlassContainer", "add a refracting glass switch or slider", or mentions GlassStage, GlassSurface, GlassOrb, GlassButton, Snell refraction, Cauchy dispersion, or progressive Liquid Glass fallbacks on the web.
-version: 0.1.2
+description: This skill should be used when the user asks to "add liquid glass", "build Apple iOS 26/27 glass UI", "use liquid-glass-web", "create a GlassTabBar", "fuse glass surfaces with GlassContainer", "add a refracting glass switch, slider, or scroll edge", or mentions GlassStage, GlassSurface, GlassOrb, GlassButton, GlassScrollEdge, Snell refraction, Cauchy dispersion, or progressive Liquid Glass fallbacks on the web.
+version: 0.1.3
 ---
 
 # liquid-glass-web
@@ -18,7 +18,7 @@ npm install @pavlonekrasov/liquid-glass-web
 # or: pnpm add @pavlonekrasov/liquid-glass-web
 ```
 
-Import the stylesheet once in the root layout or entry module:
+Import the stylesheet once in the root layout or entry module (all engine, union, focus, and accessibility styles live inside this file — never copy or hand-write engine CSS in app components):
 
 ```tsx
 import "@pavlonekrasov/liquid-glass-web/styles.css";
@@ -45,6 +45,7 @@ import {
   GlassSwitch,
   GlassSlider,
   GlassButton,
+  GlassScrollEdge,
 } from "@pavlonekrasov/liquid-glass-web";
 import "@pavlonekrasov/liquid-glass-web/styles.css";
 
@@ -99,18 +100,19 @@ Prefer the semantic top-level props over raw optical constants. Reach for `optic
 
 To make sibling surfaces fuse and split like real liquid droplets:
 
-1. Place sibling `<GlassTabBar>`, `<GlassOrb>`, `<GlassButton>`, or `<GlassSurface>` elements inside one `<GlassContainer id="nav" mergeRadius={22}>`.
+1. Place sibling `<GlassTabBar>`, `<GlassOrb>`, `<GlassButton>`, or `<GlassSurface>` elements inside one `<GlassContainer id="nav" mergeRadius={22}>` (supports full capsules and custom-radius `<GlassSurface radius={...}>` cards).
 2. Keep the resting gap around `14 px` (cleanly detached because `polySmin(7, 7, 22) > 0`).
-3. Toggle `merged` on `<GlassOrb>` (pulls `-11 px` to a `3 px` bridge, crossing the exact kiss threshold `gap = mergeRadius / 2 = 11 px`) to form a refracting 3D liquid meniscus in Tier 0 WebGL2 and a coordinated proximity glide in Tier 1–2.
-4. Keep at most 3 distinct `<GlassContainer>` groups and 8 base glass surfaces per `<GlassStage>` (matching GPU uniform array bounds `GlassNode[8]` + `GlassLoupe[4]`).
+3. Toggle `merged` on `<GlassOrb>` (pulls `-11 px` to a `3 px` bridge, crossing the exact kiss threshold `gap = mergeRadius / 2 = 11 px`) to form a real full-DPR `polySmin` liquid meniscus across **every** optical tier: Tier 0 renders it in full-stage WebGL2, while Tier 1–2 render the unified Fresnel rim and analytical Gaussian contact shadow in WebGL2 at full DPR with a synchronous inline DOM `<mask>` (plus live zero-bake translating Snell refraction during spring motion in Tier 1).
+4. Add `<GlassScrollEdge position="bottom" tintColor="var(--paper)" />` for an iOS progressive-blur scroll edge that fades automatically as content reaches the scroll boundary.
+5. Keep at most 3 distinct `<GlassContainer>` groups and 8 base glass surfaces per `<GlassStage>` (matching GPU uniform array bounds `GlassNode[8]` + `GlassLoupe[4]`).
 
 ## Progressive Enhancement Tiers (`engine="auto"`)
 
 | Tier | Engine | Target Browsers | Optical Pipeline |
 | --- | --- | --- | --- |
 | **Tier 0** | `html-in-canvas` | Chrome 157+ (`<canvas content="drawable">`) | Float32 WebGL2, 11-band Cauchy `n(λ)`, `polySmin` fusion + saddle damping, 4× Fresnel, 0 ms PNG bakes |
-| **Tier 1** | `svg-backdrop` | Chromium (`backdrop-filter: url()`) | 1-tap linear `feDisplacementMap` fast-path (100+ FPS) + seam-free opaque-piece Fresnel & Beer–Lambert masks |
-| **Tier 2** | `svg-content` | Safari & Firefox (`filter: url()`) | Aave content-path 5-band spectral filter (`-cN` cache-busting IDs) + 1:1 luminance cutout mask |
+| **Tier 1** | `svg-backdrop` | Chromium (`backdrop-filter: url()`) | 1-tap linear `feDisplacementMap` fast-path + full-DPR WebGL2 `polySmin` union surface with synchronous inline `<mask>` & zero-bake motion refraction |
+| **Tier 2** | `svg-content` | Safari & Firefox (`filter: url()`) | Aave content-path 5-band spectral filter (`-cN` cache-busting IDs), full-DPR WebGL2 `polySmin` union surface, and measured 1:1 luminance cutout mask |
 | **Tier 3** | `frost` | Reduced transparency / high contrast / forced colors | Opaque high-contrast accessible DOM surfaces with full keyboard & ARIA parity |
 
 ## Accessibility Rules (Non-Negotiable)

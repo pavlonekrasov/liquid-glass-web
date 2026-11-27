@@ -46,4 +46,11 @@ test("library CSS enforces -webkit-backdrop-filter order, border-radius: inherit
   assert.match(css, /prefers-reduced-transparency:\s*reduce/);
   assert.match(css, /prefers-contrast:\s*more/);
   assert.match(css, /forced-colors:\s*active/);
+
+  // Non-interactive loupe overlays must never inherit pointer-events: auto from .lgw-chrome
+  assert.match(
+    css,
+    /\.lgw-chrome\s+\.lgw-glass-surface:not\(\.lgw-loupe\):not\(\.lgw-switch__loupe\):not\(\.lgw-slider__loupe\)/,
+    ".lgw-chrome must exclude .lgw-loupe overlays from pointer-events: auto so active-tab scrubbing works",
+  );
 });

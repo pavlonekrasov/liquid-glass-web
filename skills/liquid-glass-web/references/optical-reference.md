@@ -26,8 +26,9 @@ Detailed physical laws, browser compositor invariants, and advanced `optics` ove
 
 ### Polynomial Smooth-Minimum (`smin`) & Saddle Damping
 - `polySmin(a, b, k) = min(a, b) - h^2 * k * 0.25` where `h = max(k - |a - b|, 0) / k`.
-- Two capsules separated by gap `g` kiss at `g = k / 2` (`11 px` for default `k = 22 px`).
+- Two shapes separated by gap `g` kiss at `g = k / 2` (`11 px` for default `k = 22 px`), supporting both full capsules and custom-radius rounded rectangles (`r < hh`).
 - In Tier 0 WebGL2, `gradMag = clamp(length(vec2(gx, gy)) / (2 * eps), 0, 1)` damps Snell strength and Fresnel by `smoothstep(0.05, 0.85, gradMag)` across concave bridge saddles to eliminate center pinch dots.
+- In Tier 1–2 `<GlassContainer>`, `unionWebgl.ts` renders the unified contour at full `sheetScale(dpr)` on every 120 Hz spring frame (~0.15 ms) using the shared `65 × 65` `dualRimTerms` LUT, exact Gaussian half-plane outer shadow convolution strictly on `1 - coverage`, exact CSS stacking order (`1px border` → `::before` body tint → `.lgw-scrim` → `::after` 3D Fresnel on top), and a synchronous inline DOM `<svg><mask>` with zero-bake translating Snell tiles during motion (upgrading to the unified `2×` saddle displacement map `65 ms` after settle).
 
 ### Two-Layer Tucked Gaussian Shadow
 - Chroma-preserving shadow law: `pow(bg, 1 + 0.32s) * (1 - 0.88s)`.
@@ -44,7 +45,10 @@ Detailed physical laws, browser compositor invariants, and advanced `optics` ove
 | Tier 1 SVG | Multi-tap `feDisplacementMap` inside `backdrop-filter: url()` stalls ~450 ms/frame | Linear 1-tap `feDisplacementMap` fast-path only in Tier 1 |
 | Tier 1 SVG | Mutating `feDisplacementMap[scale]` per frame rebuilds Skia DAG | Static SVG `scale` during springs; animate GPU `transform` & `opacity` only |
 | Tier 1 SVG | Animating `background-color` on `::before` with `-webkit-mask-box-image` flashes solid white | Animate `opacity` on dedicated `.lgw-scrim` element only |
-| Tier 2 Aave | Safari SVG filter cache stale on resize & double icons under loupe | Bump `-cN` filter ID suffix on geometry updates + 1:1 SVG luminance cutout mask on track |
+| Tier 1–2 Union | `data:image/svg+xml` `mask-image` lags 1–2 frames behind motion & `destination-out` shadows leave a dark AA fringe | Use synchronous inline DOM `<svg><mask id="...">` and pure analytical Gaussian half-plane SDF outer shadow inside full-DPR WebGL2 (`unionWebgl.ts`) |
+| Tier 1–2 Union | Compositing 1 px outer border over Fresnel darkens Paper top rims by ~27 luma | Match exact W3C CSS stacking order inside `isolation: isolate`: `1px border` → body tint → scrim → 3D Fresnel on top |
+| Tier 1–2 Input | `.lgw-chrome .lgw-glass-surface { pointer-events: auto }` overriding `.lgw-loupe { pointer-events: none }` swallows active-tab drag events | Exclude `:not(.lgw-loupe):not(.lgw-switch__loupe):not(.lgw-slider__loupe)` on `.lgw-chrome` |
+| Tier 2 Aave | Safari SVG filter cache stale on resize & double icons under loupe | Bump `-cN` filter ID suffix on geometry updates + measured 1:1 SVG luminance cutout mask on track |
 | Motion | Passing `duration` or `bounce` keys to `motion/react` `animate()` collapses springs to ~50 ms snap | `springFromDurationBounce()` emits `{ type: "spring", stiffness, damping, mass: 1 }` only |
 
 ## 3. Full `GlassOpticsOverride` Keys

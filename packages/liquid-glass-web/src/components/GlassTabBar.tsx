@@ -423,11 +423,7 @@ export function GlassTabBar({
     targetIdx: activeIdx,
   });
 
-  const cutoutMaskUrl = useMemo(() => {
-    const w = size === "icons" ? 72 : 96;
-    const h = size === "icons" ? 60 : size === "text" ? 58 : 66;
-    return buildLoupeCutoutMask(w, h);
-  }, [size]);
+  const cutoutMaskCacheRef = useRef<{ key: string; url: string }>({ key: "", url: "" });
 
   const measureTab = useCallback((idx: number) => {
     const btn = tabRefs.current[idx];
@@ -490,14 +486,22 @@ export function GlassTabBar({
     const track = trackRef.current;
     if (track) {
       if (useContentPath && loupeOpacity > 0.15) {
+        const maskKey = `${loupeW}x${loupeH}`;
+        if (cutoutMaskCacheRef.current.key !== maskKey) {
+          cutoutMaskCacheRef.current = {
+            key: maskKey,
+            url: buildLoupeCutoutMask(loupeW, loupeH),
+          };
+        }
+        const cutoutUrl = cutoutMaskCacheRef.current.url;
         const mw = CUTOUT_W * sx;
         const mh = CUTOUT_H * sy;
         const mx = cx - trackLeft - mw / 2;
         const my = h / 2 - mh / 2;
-        if (track.dataset.lgwCutout !== cutoutMaskUrl) {
-          track.dataset.lgwCutout = cutoutMaskUrl;
-          track.style.maskImage = cutoutMaskUrl;
-          track.style.webkitMaskImage = cutoutMaskUrl;
+        if (track.dataset.lgwCutout !== cutoutUrl) {
+          track.dataset.lgwCutout = cutoutUrl;
+          track.style.maskImage = cutoutUrl;
+          track.style.webkitMaskImage = cutoutUrl;
           track.style.maskMode = "luminance";
           track.style.maskRepeat = "no-repeat";
           track.style.webkitMaskRepeat = "no-repeat";
@@ -577,7 +581,6 @@ export function GlassTabBar({
     config.interactive,
     container.mergeRadius,
     container.morphGroup,
-    cutoutMaskUrl,
     instanceId,
     isRefractingLoupe,
     pillDeform.touchGlowRadius,
@@ -613,18 +616,23 @@ export function GlassTabBar({
   );
 
   useEffect(() => {
-    if (!stage.hicBridge) return;
-    paintIndicators();
-    const raf = requestAnimationFrame(paintIndicators);
+    const bridge = stage.hicBridge;
+    if (!bridge) return;
     const onResize = () => paintIndicators();
     window.addEventListener("resize", onResize);
     return () => {
-      cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
-      stage.hicBridge?.removeSurface(`tabbar-${instanceId}`);
-      stage.hicBridge?.removeLoupe(`tabbar-loupe-${instanceId}`);
+      bridge.removeSurface(`tabbar-${instanceId}`);
+      bridge.removeLoupe(`tabbar-loupe-${instanceId}`);
     };
-  }, [stage.hicBridge, stage.layoutVersion, instanceId, paintIndicators]);
+  }, [stage.hicBridge, instanceId, paintIndicators]);
+
+  useEffect(() => {
+    if (!stage.hicBridge) return;
+    paintIndicators();
+    const raf = requestAnimationFrame(paintIndicators);
+    return () => cancelAnimationFrame(raf);
+  }, [stage.hicBridge, stage.layoutVersion, paintIndicators]);
 
   const scrubCleanupRef = useRef<(() => void) | null>(null);
 
@@ -913,6 +921,32 @@ export function GlassTabBar({
       vxPxPerSec: 0,
       targetIdx: activeIdx,
     };
+
+    // Native iOS 26 press-and-bloom: pressing the active tab lifts the refracting droplet immediately
+    if (
+      isRefractingLoupe &&
+      !stage.reducedMotion &&
+      nearestTabIndex(localX) === activeIdx &&
+      live.current.lift < 0.99
+    ) {
+      stopAnims();
+      anims.current = [
+        animate(live.current.lift, 1.0, {
+          ...GLASS_SPRINGS.loupeLift,
+          onUpdate: (v) => {
+            live.current.lift = v;
+            paintIndicators();
+          },
+        }),
+        animate(live.current.pressGain, pillDeform.pressOpticalGain, {
+          ...GLASS_SPRINGS.loupeLift,
+          onUpdate: (v) => {
+            live.current.pressGain = v;
+            paintIndicators();
+          },
+        }),
+      ];
+    }
 
     // Guard against releasing outside the track before the 4px drag capture threshold
     scrubCleanupRef.current?.();

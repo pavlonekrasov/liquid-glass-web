@@ -158,20 +158,25 @@ export function GlassSurface({
   }, [useHic, frostOnly, container.mergeRadius, surfaceId, registerUnionElement, notifyUnionMove]);
 
   useEffect(() => {
-    if (!stage.hicBridge) return;
-    pushHic();
-    const raf = requestAnimationFrame(pushHic);
+    const bridge = stage.hicBridge;
+    if (!bridge) return;
     const el = elRef.current;
     const ro = el ? new ResizeObserver(pushHic) : null;
     if (el && ro) ro.observe(el);
     window.addEventListener("resize", pushHic);
     return () => {
-      cancelAnimationFrame(raf);
       ro?.disconnect();
       window.removeEventListener("resize", pushHic);
-      stage.hicBridge?.removeSurface(`surface-${surfaceId}`);
+      bridge.removeSurface(`surface-${surfaceId}`);
     };
-  }, [stage.hicBridge, stage.layoutVersion, pushHic, surfaceId]);
+  }, [stage.hicBridge, pushHic, surfaceId]);
+
+  useEffect(() => {
+    if (!stage.hicBridge) return;
+    pushHic();
+    const raf = requestAnimationFrame(pushHic);
+    return () => cancelAnimationFrame(raf);
+  }, [stage.hicBridge, stage.layoutVersion, pushHic]);
 
   const animateGlow = useCallback(
     (target: number) => {

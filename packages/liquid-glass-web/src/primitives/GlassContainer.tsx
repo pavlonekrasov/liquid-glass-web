@@ -20,11 +20,14 @@ import {
 } from "../core/optics.ts";
 import {
   bakePolySminOptics,
+  buildCapsuleDisplacementMap,
   buildPolySminDisplacementMap,
   buildPolySminPath,
+  type PolySminOpticsParams,
   type UnionCapsule,
 } from "../core/union.ts";
 import { detectChromiumSvgBackdrop } from "../engines/capabilities.ts";
+import { createUnionWebGLRenderer, type UnionWebGLRenderer } from "../engines/unionWebgl.ts";
 import { GlassContainerContext, useGlassStage } from "./context.tsx";
 
 export interface GlassContainerProps {
@@ -54,6 +57,13 @@ function encodeUnionTile(width: number, height: number, data: Uint8ClampedArray)
   return unionEncodeCanvas.toDataURL("image/png");
 }
 
+interface MotionDispCache {
+  readonly key: string;
+  readonly barUrl: string;
+  readonly orbUrl: string;
+  readonly dMax: number;
+}
+
 /** Like SwiftUI's GlassEffectContainer: glass children inside it merge into one shape on every tier. */
 export function GlassContainer({
   id,
@@ -71,27 +81,37 @@ export function GlassContainer({
   const containerRef = useRef<HTMLDivElement>(null);
   const unionWrapRef = useRef<HTMLDivElement>(null);
   const unionBackdropRef = useRef<HTMLDivElement>(null);
-  const shadowCanvasRef = useRef<HTMLCanvasElement>(null);
-  const opticsCanvasRef = useRef<HTMLCanvasElement>(null);
+  const surfaceCanvasRef = useRef<HTMLCanvasElement>(null);
+  const maskSvgRef = useRef<SVGSVGElement>(null);
+  const maskElRef = useRef<SVGMaskElement>(null);
+  const maskPathRef = useRef<SVGPathElement>(null);
   const localSvgRef = useRef<SVGSVGElement>(null);
+
+  const webglRef = useRef<UnionWebGLRenderer | null>(null);
+  const webglInitTriedRef = useRef(false);
 
   const elementsRef = useRef<Map<string, HTMLElement>>(new Map());
   const settleTimerRef = useRef<number | null>(null);
   const filterNodeRef = useRef<{
     filter: SVGFilterElement;
-    feImage: SVGFEImageElement;
+    feBar: SVGFEImageElement;
+    feOrb: SVGFEImageElement;
     feDisp: SVGFEDisplacementMapElement;
   } | null>(null);
-  const lastSnapRef = useRef<{
+  const motionDispCacheRef = useRef<MotionDispCache | null>(null);
+
+  // Tracks the EXACT last rendered snapshot (never overwritten when skipped -> zero spring-tail drift!)
+  const lastRenderedRef = useRef<{
     w: number;
     h: number;
+    dpr: number;
+    k: number;
     a: UnionCapsule;
     b: UnionCapsule;
     pathD: string;
   } | null>(null);
-  const dispActiveRef = useRef(false);
+  const dispModeRef = useRef<"none" | "motion" | "settled">("none");
   const lastToneKeyRef = useRef("");
-  const lastDprRef = useRef(1);
 
   const safeMergeRadius = Math.max(0, mergeRadius);
   const useHic = Boolean(stage.hicBridge);
@@ -104,8 +124,9 @@ export function GlassContainer({
   );
 
   const unionFilterId = `lgw-union-disp-${safeId}`;
+  const unionMaskId = `lgw-union-mask-${safeId}`;
 
-  // Latest values live in a ref so the paint loop never rebinds callbacks
+  // Latest values live in a ref so the 120Hz paint loop never rebinds callbacks
   const stageLiveRef = useRef({
     config: stage.config,
     effectiveFg: stage.effectiveFg,
@@ -137,7 +158,6 @@ export function GlassContainer({
       ].filter(Boolean);
       const val = parts.join(" ") || "blur(2px) saturate(1.25)";
       backdropEl.style.setProperty("--lgw-union-backdrop", val);
-      dispActiveRef.current = withDispFilter;
     },
     [unionFilterId],
   );
@@ -186,61 +206,66 @@ export function GlassContainer({
     return { optics, lighting, activeStrength, edgeAlpha, borderWidth };
   }, []);
 
-  /** Paints the outer shadow on a canvas without darkening the interior. */
-  const paintUnionShadow = useCallback((w: number, h: number, pathD: string, scale: number) => {
-    const canvas = shadowCanvasRef.current;
-    if (!canvas || typeof Path2D === "undefined") return;
-    const { config: c } = stageLiveRef.current;
-    const cw = w + SHADOW_PAD * 2;
-    const ch = h + SHADOW_PAD * 2;
-    const pw = Math.max(2, Math.round(cw * scale));
-    const ph = Math.max(2, Math.round(ch * scale));
-    if (canvas.width !== pw || canvas.height !== ph) {
-      canvas.width = pw;
-      canvas.height = ph;
+  const ensureFilterNode = useCallback(() => {
+    const host = stage.hasStageSvg ? stage.svgHostRef.current : localSvgRef.current;
+    if (!host) return null;
+
+    if (!filterNodeRef.current) {
+      const filter = document.createElementNS(SVG_NS, "filter");
+      filter.setAttribute("id", unionFilterId);
+      filter.setAttribute("filterUnits", "userSpaceOnUse");
+      filter.setAttribute("primitiveUnits", "userSpaceOnUse");
+      filter.setAttribute("color-interpolation-filters", "sRGB");
+
+      const feFlood = document.createElementNS(SVG_NS, "feFlood");
+      feFlood.setAttribute("flood-color", "rgb(128,128,128)");
+      feFlood.setAttribute("flood-opacity", "1");
+      feFlood.setAttribute("result", "neutral");
+
+      const feBar = document.createElementNS(SVG_NS, "feImage");
+      feBar.setAttribute("preserveAspectRatio", "none");
+      feBar.setAttribute("result", "bar");
+
+      const feOrb = document.createElementNS(SVG_NS, "feImage");
+      feOrb.setAttribute("preserveAspectRatio", "none");
+      feOrb.setAttribute("result", "orb");
+
+      const feMerge = document.createElementNS(SVG_NS, "feMerge");
+      feMerge.setAttribute("result", "map");
+      for (const src of ["neutral", "bar", "orb"]) {
+        const node = document.createElementNS(SVG_NS, "feMergeNode");
+        node.setAttribute("in", src);
+        feMerge.append(node);
+      }
+
+      const feDisp = document.createElementNS(SVG_NS, "feDisplacementMap");
+      feDisp.setAttribute("in", "SourceGraphic");
+      feDisp.setAttribute("in2", "map");
+      feDisp.setAttribute("xChannelSelector", "R");
+      feDisp.setAttribute("yChannelSelector", "G");
+
+      filter.append(feFlood, feBar, feOrb, feMerge, feDisp);
+      host.append(filter);
+      filterNodeRef.current = { filter, feBar, feOrb, feDisp };
+    } else if (filterNodeRef.current.filter.parentNode !== host) {
+      host.append(filterNodeRef.current.filter);
     }
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
 
-    ctx.save();
-    ctx.setTransform(scale, 0, 0, scale, 0, 0);
-    ctx.clearRect(0, 0, cw, ch);
-    ctx.translate(SHADOW_PAD, SHADOW_PAD);
+    return filterNodeRef.current;
+  }, [stage.hasStageSvg, stage.svgHostRef, unionFilterId]);
 
-    const shape = new Path2D(pathD);
-    ctx.fillStyle = "rgb(15, 20, 32)";
-
-    // Far shadow (matches the .lgw-glass-surface box-shadow)
-    ctx.shadowColor = `rgba(15, 20, 32, ${(c.shadowAlpha * 0.92).toFixed(3)})`;
-    ctx.shadowBlur = 18;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 7;
-    ctx.fill(shape);
-
-    // Near contact shadow
-    ctx.shadowColor = `rgba(15, 20, 32, ${(c.shadowAlpha * 0.55).toFixed(3)})`;
-    ctx.shadowBlur = 3;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 1;
-    ctx.fill(shape);
-
-    // Cut out the interior so the shadow never tints the glass
-    ctx.shadowColor = "transparent";
-    ctx.shadowBlur = 0;
-    ctx.shadowOffsetY = 0;
-    ctx.globalCompositeOperation = "destination-out";
-    ctx.fill(shape);
-    ctx.restore();
-  }, []);
-
-  /** Paints tint, scrim and Fresnel rim on a canvas. */
-  const paintUnionOptics = useCallback(
-    (w: number, h: number, a: UnionCapsule, b: UnionCapsule, highRes: boolean) => {
-      const canvas = opticsCanvasRef.current;
+  /**
+   * Renders unified pure-SDF outer shadow + Beer–Lambert tint + scrim + exact 3D Schlick
+   * Fresnel + 1px optical edge at FULL Retina DPR on EVERY frame via WebGL2 (~0.15ms/frame),
+   * falling back seamlessly to the identical pure-math CPU renderer if WebGL2 is unavailable.
+   */
+  const paintUnionSurface = useCallback(
+    (w: number, h: number, a: UnionCapsule, b: UnionCapsule) => {
+      const canvas = surfaceCanvasRef.current;
       if (!canvas) return;
       const { config: c, effectiveFg, legibility } = stageLiveRef.current;
       const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-      const scale = highRes ? sheetScale(dpr) : 1;
+      const scale = sheetScale(dpr);
 
       const { optics, lighting, edgeAlpha, borderWidth } = buildOpticsSpec(a, b);
       const isLightFg = effectiveFg === "light";
@@ -259,7 +284,7 @@ export function GlassContainer({
           : 0;
       const edgeRgb = c.edgeRingLight ? { r: 255, g: 255, b: 255 } : { r: 15, g: 18, b: 26 };
 
-      const tile = bakePolySminOptics(w, h, a, b, safeMergeRadius, {
+      const params: PolySminOpticsParams = {
         optics,
         lighting,
         bodyRgb,
@@ -270,9 +295,22 @@ export function GlassContainer({
         edgeRgb,
         edgeAlpha,
         borderWidth,
+        shadowAlpha: c.shadowAlpha,
+        padCss: SHADOW_PAD,
         scale,
-      });
+      };
 
+      if (!webglInitTriedRef.current) {
+        webglInitTriedRef.current = true;
+        webglRef.current = createUnionWebGLRenderer(canvas);
+      }
+
+      if (webglRef.current && webglRef.current.render(w, h, a, b, safeMergeRadius, params)) {
+        return;
+      }
+
+      // Identical pure-math CPU fallback (still full DPR and zero destination-out fringe)
+      const tile = bakePolySminOptics(w, h, a, b, safeMergeRadius, params);
       if (canvas.width !== tile.width || canvas.height !== tile.height) {
         canvas.width = tile.width;
         canvas.height = tile.height;
@@ -288,51 +326,118 @@ export function GlassContainer({
     [buildOpticsSpec, safeMergeRadius],
   );
 
-  /** Bakes the fused displacement map for Tier 1 once settled. */
+  /**
+   * Keeps Tier 1 Snell refraction LIVE on every single 120Hz motion frame by translating
+   * a pre-baked static orb tile over a pre-baked static bar tile (0 PNG encodes per frame!).
+   */
+  const updateMotionDisplacement = useCallback(
+    (w: number, h: number, a: UnionCapsule, b: UnionCapsule) => {
+      if (!detectChromiumSvgBackdrop()) {
+        applyBackdropCss(false);
+        dispModeRef.current = "none";
+        return;
+      }
+
+      const { optics, activeStrength } = buildOpticsSpec(a, b);
+      if (activeStrength <= 0.01) {
+        applyBackdropCss(false);
+        dispModeRef.current = "none";
+        return;
+      }
+
+      const node = ensureFilterNode();
+      if (!node) return;
+
+      const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+      const left = a.cx <= b.cx ? a : b;
+      const right = a.cx <= b.cx ? b : a;
+      const barW = left.hw * 2;
+      const barH = left.hh * 2;
+      const orbW = right.hw * 2;
+      const orbH = right.hh * 2;
+
+      const cacheKey = [
+        barW.toFixed(1),
+        barH.toFixed(1),
+        orbW.toFixed(1),
+        orbH.toFixed(1),
+        optics.profile,
+        optics.bezel.toFixed(2),
+        optics.thickness.toFixed(2),
+        optics.ior.toFixed(4),
+        optics.minJacobian.toFixed(3),
+        (optics.maxMultiplier ?? 1).toFixed(3),
+        tileScale(dpr).toFixed(2),
+      ].join("|");
+
+      let cache = motionDispCacheRef.current;
+      if (!cache || cache.key !== cacheKey) {
+        const s = tileScale(dpr);
+        const barRes = buildCapsuleDisplacementMap(barW, barH, left.r, optics, s);
+        const orbRes = buildCapsuleDisplacementMap(orbW, orbH, right.r, optics, s);
+        const barUrl = encodeUnionTile(barRes.tile.width, barRes.tile.height, barRes.tile.data);
+        const orbUrl = encodeUnionTile(orbRes.tile.width, orbRes.tile.height, orbRes.tile.data);
+        if (!barUrl || !orbUrl) return;
+        cache = { key: cacheKey, barUrl, orbUrl, dMax: Math.max(barRes.dMax, orbRes.dMax) };
+        motionDispCacheRef.current = cache;
+      }
+
+      const { filter, feBar, feOrb, feDisp } = node;
+      const wStr = w.toFixed(2);
+      const hStr = h.toFixed(2);
+      filter.setAttribute("x", "0");
+      filter.setAttribute("y", "0");
+      filter.setAttribute("width", wStr);
+      filter.setAttribute("height", hStr);
+
+      if (dispModeRef.current !== "motion" || feBar.getAttribute("href") !== cache.barUrl) {
+        feBar.setAttribute("href", cache.barUrl);
+        feOrb.setAttribute("href", cache.orbUrl);
+      }
+
+      feBar.setAttribute("x", (left.cx - left.hw).toFixed(2));
+      feBar.setAttribute("y", (left.cy - left.hh).toFixed(2));
+      feBar.setAttribute("width", barW.toFixed(2));
+      feBar.setAttribute("height", barH.toFixed(2));
+
+      feOrb.setAttribute("x", (right.cx - right.hw).toFixed(2));
+      feOrb.setAttribute("y", (right.cy - right.hh).toFixed(2));
+      feOrb.setAttribute("width", orbW.toFixed(2));
+      feOrb.setAttribute("height", orbH.toFixed(2));
+
+      const dispScale = 2 * cache.dMax * Math.max(0, activeStrength);
+      feDisp.setAttribute("scale", String(Math.round(dispScale * 1000) / 1000));
+      applyBackdropCss(dispScale > 0.05);
+      dispModeRef.current = "motion";
+    },
+    [applyBackdropCss, buildOpticsSpec, ensureFilterNode],
+  );
+
+  /** Upgrades Tier 1 displacement map to the unified 2x polySmin saddle field once settled. */
   const bakeSettledDisplacement = useCallback(() => {
-    const snap = lastSnapRef.current;
+    const snap = lastRenderedRef.current;
     if (!enableCssUnion || !snap) return;
 
-    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
-    // Full-resolution canvases once settled
-    paintUnionShadow(snap.w, snap.h, snap.pathD, sheetScale(dpr));
-    paintUnionOptics(snap.w, snap.h, snap.a, snap.b, true);
+    // Ensure full-DPR surface reflects latest optics/config
+    paintUnionSurface(snap.w, snap.h, snap.a, snap.b);
 
     if (!detectChromiumSvgBackdrop()) {
       applyBackdropCss(false);
+      dispModeRef.current = "none";
       return;
     }
 
     const { optics, activeStrength } = buildOpticsSpec(snap.a, snap.b);
     if (activeStrength <= 0.01) {
       applyBackdropCss(false);
+      dispModeRef.current = "none";
       return;
     }
 
-    const host = stage.hasStageSvg ? stage.svgHostRef.current : localSvgRef.current;
-    if (!host) return;
+    const node = ensureFilterNode();
+    if (!node) return;
 
-    if (!filterNodeRef.current) {
-      const filter = document.createElementNS(SVG_NS, "filter");
-      filter.setAttribute("id", unionFilterId);
-      filter.setAttribute("filterUnits", "userSpaceOnUse");
-      filter.setAttribute("primitiveUnits", "userSpaceOnUse");
-      filter.setAttribute("color-interpolation-filters", "sRGB");
-      const feImage = document.createElementNS(SVG_NS, "feImage");
-      feImage.setAttribute("preserveAspectRatio", "none");
-      feImage.setAttribute("result", "map");
-      const feDisp = document.createElementNS(SVG_NS, "feDisplacementMap");
-      feDisp.setAttribute("in", "SourceGraphic");
-      feDisp.setAttribute("in2", "map");
-      feDisp.setAttribute("xChannelSelector", "R");
-      feDisp.setAttribute("yChannelSelector", "G");
-      filter.append(feImage, feDisp);
-      host.append(filter);
-      filterNodeRef.current = { filter, feImage, feDisp };
-    } else if (filterNodeRef.current.filter.parentNode !== host) {
-      host.append(filterNodeRef.current.filter);
-    }
-
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
     const { tile, dMax } = buildPolySminDisplacementMap(
       snap.w,
       snap.h,
@@ -345,31 +450,37 @@ export function GlassContainer({
     const dataUrl = encodeUnionTile(tile.width, tile.height, tile.data);
     if (!dataUrl) return;
 
-    const { filter, feImage, feDisp } = filterNodeRef.current;
-    const wStr = String(snap.w);
-    const hStr = String(snap.h);
+    const { filter, feBar, feOrb, feDisp } = node;
+    const wStr = snap.w.toFixed(2);
+    const hStr = snap.h.toFixed(2);
     filter.setAttribute("x", "0");
     filter.setAttribute("y", "0");
     filter.setAttribute("width", wStr);
     filter.setAttribute("height", hStr);
-    feImage.setAttribute("x", "0");
-    feImage.setAttribute("y", "0");
-    feImage.setAttribute("width", wStr);
-    feImage.setAttribute("height", hStr);
-    feImage.setAttribute("href", dataUrl);
+
+    feBar.setAttribute("x", "0");
+    feBar.setAttribute("y", "0");
+    feBar.setAttribute("width", wStr);
+    feBar.setAttribute("height", hStr);
+    feBar.setAttribute("href", dataUrl);
+
+    // Collapse secondary orb layer while unified polySmin saddle tile is active
+    feOrb.setAttribute("x", "0");
+    feOrb.setAttribute("y", "0");
+    feOrb.setAttribute("width", "0");
+    feOrb.setAttribute("height", "0");
+
     const dispScale = 2 * dMax * Math.max(0, activeStrength);
     feDisp.setAttribute("scale", String(Math.round(dispScale * 1000) / 1000));
     applyBackdropCss(dispScale > 0.05);
+    dispModeRef.current = "settled";
   }, [
     applyBackdropCss,
     buildOpticsSpec,
     enableCssUnion,
-    paintUnionOptics,
-    paintUnionShadow,
+    ensureFilterNode,
+    paintUnionSurface,
     safeMergeRadius,
-    stage.hasStageSvg,
-    stage.svgHostRef,
-    unionFilterId,
   ]);
 
   const syncUnion = useCallback(() => {
@@ -377,20 +488,26 @@ export function GlassContainer({
     const unionWrap = unionWrapRef.current;
     if (!containerEl || !unionWrap) return;
 
-    if (!enableCssUnion || elementsRef.current.size < 2) {
+    const clearUnion = () => {
       containerEl.removeAttribute("data-lgw-union");
+      containerEl.removeAttribute("data-lgw-union-orb-cx");
       unionWrap.style.display = "none";
-      lastSnapRef.current = null;
-      dispActiveRef.current = false;
+      lastRenderedRef.current = null;
+      dispModeRef.current = "none";
+      if (settleTimerRef.current !== null) {
+        window.clearTimeout(settleTimerRef.current);
+        settleTimerRef.current = null;
+      }
+    };
+
+    if (!enableCssUnion || elementsRef.current.size < 2) {
+      clearUnion();
       return;
     }
 
     const cr = containerEl.getBoundingClientRect();
     if (cr.width <= 4 || cr.height <= 4) {
-      containerEl.removeAttribute("data-lgw-union");
-      unionWrap.style.display = "none";
-      lastSnapRef.current = null;
-      dispActiveRef.current = false;
+      clearUnion();
       return;
     }
 
@@ -400,20 +517,24 @@ export function GlassContainer({
       if (r.width <= 4 || r.height <= 4) continue;
       const hw = r.width / 2;
       const hh = r.height / 2;
+      const rawRad = getComputedStyle(el).borderTopLeftRadius.trim().split(/\s+/)[0] ?? "";
+      const parsedRad = Number.parseFloat(rawRad);
+      const cssRad = Number.isFinite(parsedRad)
+        ? rawRad.endsWith("%")
+          ? (parsedRad / 100) * r.width
+          : parsedRad
+        : Math.min(hw, hh);
       caps.push({
         cx: r.left - cr.left + hw,
         cy: r.top - cr.top + hh,
         hw,
         hh,
-        r: Math.min(hw, hh),
+        r: Math.max(2, Math.min(cssRad, hw, hh)),
       });
     }
 
     if (caps.length < 2) {
-      containerEl.removeAttribute("data-lgw-union");
-      unionWrap.style.display = "none";
-      lastSnapRef.current = null;
-      dispActiveRef.current = false;
+      clearUnion();
       return;
     }
 
@@ -438,67 +559,80 @@ export function GlassContainer({
 
     const contour = buildPolySminPath(capA, capB, safeMergeRadius);
     if (!contour) {
-      containerEl.removeAttribute("data-lgw-union");
-      unionWrap.style.display = "none";
-      lastSnapRef.current = null;
-      dispActiveRef.current = false;
-      if (settleTimerRef.current !== null) {
-        window.clearTimeout(settleTimerRef.current);
-        settleTimerRef.current = null;
-      }
+      clearUnion();
       return;
     }
 
     containerEl.setAttribute("data-lgw-union", "true");
     unionWrap.style.display = "block";
 
-    const w = Math.ceil(cr.width);
-    const h = Math.ceil(cr.height);
-    const pathD = contour.path;
+    // Exact fractional CSS dimensions (eliminates Math.ceil sub-pixel rim stretch)
+    const w = cr.width;
+    const h = cr.height;
     const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
 
-    const prev = lastSnapRef.current;
-    const moved =
+    // Compare against the LAST ACTUALLY RENDERED pose (tight 0.02px threshold -> zero spring-tail drift!)
+    const prev = lastRenderedRef.current;
+    const changed =
       !prev ||
-      Math.abs(dpr - lastDprRef.current) > 0.01 ||
-      Math.abs(prev.w - w) > 0.5 ||
-      Math.abs(prev.h - h) > 0.5 ||
-      Math.abs(prev.a.cx - capA.cx) > 0.2 ||
-      Math.abs(prev.b.cx - capB.cx) > 0.2 ||
-      Math.abs(prev.a.hw - capA.hw) > 0.2 ||
-      Math.abs(prev.b.hw - capB.hw) > 0.2;
+      Math.abs(dpr - prev.dpr) > 0.01 ||
+      Math.abs(prev.k - safeMergeRadius) > 0.05 ||
+      Math.abs(prev.w - w) > 0.05 ||
+      Math.abs(prev.h - h) > 0.05 ||
+      Math.abs(prev.a.cx - capA.cx) > 0.02 ||
+      Math.abs(prev.a.cy - capA.cy) > 0.02 ||
+      Math.abs(prev.b.cx - capB.cx) > 0.02 ||
+      Math.abs(prev.b.cy - capB.cy) > 0.02 ||
+      Math.abs(prev.a.hw - capA.hw) > 0.05 ||
+      Math.abs(prev.b.hw - capB.hw) > 0.05 ||
+      Math.abs(prev.a.r - capA.r) > 0.1 ||
+      Math.abs(prev.b.r - capB.r) > 0.1;
 
-    lastDprRef.current = dpr;
-    lastSnapRef.current = { w, h, a: capA, b: capB, pathD };
+    if (!changed) return;
 
-    if (moved) {
-      const backdropEl = unionBackdropRef.current;
-      if (backdropEl) {
-        // Alpha mask clips the backdrop-filter to the fused shape
-        const maskSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><path d="${pathD}" fill="#fff"/></svg>`;
-        const maskVal = `url("data:image/svg+xml,${encodeURIComponent(maskSvg)}")`;
-        backdropEl.style.setProperty("-webkit-mask-image", maskVal);
-        backdropEl.style.maskImage = maskVal;
-      }
+    const pathD = contour.path;
+    lastRenderedRef.current = { w, h, dpr, k: safeMergeRadius, a: capA, b: capB, pathD };
+    const rightCap = capA.cx <= capB.cx ? capB : capA;
+    containerEl.setAttribute("data-lgw-union-orb-cx", rightCap.cx.toFixed(2));
 
-      // 1x canvases while animating
-      paintUnionShadow(w, h, pathD, 1);
-      paintUnionOptics(w, h, capA, capB, false);
-      applyBackdropCss(false);
-
-      if (settleTimerRef.current !== null) window.clearTimeout(settleTimerRef.current);
-      settleTimerRef.current = window.setTimeout(() => {
-        settleTimerRef.current = null;
-        bakeSettledDisplacement();
-      }, 65);
+    // 1. Synchronous inline DOM SVG <mask> (ZERO async data-URI decode lag!)
+    const wStr = w.toFixed(2);
+    const hStr = h.toFixed(2);
+    maskSvgRef.current?.setAttribute("viewBox", `0 0 ${wStr} ${hStr}`);
+    if (maskElRef.current) {
+      maskElRef.current.setAttribute("width", wStr);
+      maskElRef.current.setAttribute("height", hStr);
     }
+    maskPathRef.current?.setAttribute("d", pathD);
+
+    const backdropEl = unionBackdropRef.current;
+    if (backdropEl) {
+      const maskRef = `url(#${unionMaskId})`;
+      if (backdropEl.style.maskImage !== maskRef) {
+        backdropEl.style.setProperty("-webkit-mask-image", maskRef);
+        backdropEl.style.maskImage = maskRef;
+      }
+    }
+
+    // 2. Full-DPR WebGL2 pure-SDF outer shadow + Beer–Lambert + exact 3D Schlick Fresnel (~0.15ms!)
+    paintUnionSurface(w, h, capA, capB);
+
+    // 3. Live zero-bake Tier 1 Snell refraction during motion (never snaps flat!)
+    updateMotionDisplacement(w, h, capA, capB);
+
+    // 4. Upgrade displacement map to unified 2x polySmin saddle once motion truly settles
+    if (settleTimerRef.current !== null) window.clearTimeout(settleTimerRef.current);
+    settleTimerRef.current = window.setTimeout(() => {
+      settleTimerRef.current = null;
+      bakeSettledDisplacement();
+    }, 65);
   }, [
-    applyBackdropCss,
     bakeSettledDisplacement,
     enableCssUnion,
-    paintUnionOptics,
-    paintUnionShadow,
+    paintUnionSurface,
     safeMergeRadius,
+    unionMaskId,
+    updateMotionDisplacement,
   ]);
 
   const registerUnionElement = useCallback(
@@ -517,7 +651,10 @@ export function GlassContainer({
   useEffect(() => {
     if (!enableCssUnion) {
       containerRef.current?.removeAttribute("data-lgw-union");
+      containerRef.current?.removeAttribute("data-lgw-union-orb-cx");
       if (unionWrapRef.current) unionWrapRef.current.style.display = "none";
+      lastRenderedRef.current = null;
+      dispModeRef.current = "none";
       return;
     }
     syncUnion();
@@ -535,7 +672,8 @@ export function GlassContainer({
 
   // Rebake when the material config changes
   useEffect(() => {
-    if (!enableCssUnion || !lastSnapRef.current) return;
+    if (!enableCssUnion || !lastRenderedRef.current) return;
+    motionDispCacheRef.current = null;
     bakeSettledDisplacement();
   }, [
     enableCssUnion,
@@ -545,28 +683,31 @@ export function GlassContainer({
     bakeSettledDisplacement,
   ]);
 
-  // Repaint only when text polarity or scrim values change
+  // Repaint only the WebGL2 surface when text polarity or scrim values change (keeps Snell filter intact)
   const scrimKey = stage.legibility
     ? `${stage.legibility.scrimRgb.join(",")}:${stage.legibility.scrimAlpha.toFixed(3)}`
     : "none";
   const toneKey = `${stage.effectiveFg}|${scrimKey}`;
 
   useEffect(() => {
-    const snap = lastSnapRef.current;
+    const snap = lastRenderedRef.current;
     if (!enableCssUnion || !snap) {
       lastToneKeyRef.current = toneKey;
       return;
     }
     if (lastToneKeyRef.current === toneKey) return;
     lastToneKeyRef.current = toneKey;
-    paintUnionOptics(snap.w, snap.h, snap.a, snap.b, true);
-  }, [enableCssUnion, toneKey, paintUnionOptics]);
+    paintUnionSurface(snap.w, snap.h, snap.a, snap.b);
+  }, [enableCssUnion, toneKey, paintUnionSurface]);
 
   useEffect(() => {
     return () => {
       if (settleTimerRef.current !== null) window.clearTimeout(settleTimerRef.current);
       filterNodeRef.current?.filter.remove();
       filterNodeRef.current = null;
+      webglRef.current?.destroy();
+      webglRef.current = null;
+      webglInitTriedRef.current = false;
     };
   }, []);
 
@@ -594,18 +735,39 @@ export function GlassContainer({
             {!stage.hasStageSvg && (
               <svg ref={localSvgRef} className="lgw-svg-host" aria-hidden="true" focusable="false" />
             )}
+            <svg
+              ref={maskSvgRef}
+              className="lgw-svg-host"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <mask
+                ref={maskElRef}
+                id={unionMaskId}
+                maskUnits="userSpaceOnUse"
+                maskContentUnits="userSpaceOnUse"
+                x="0"
+                y="0"
+                width="0"
+                height="0"
+              >
+                <path ref={maskPathRef} fill="#fff" />
+              </mask>
+            </svg>
             <div
               ref={unionWrapRef}
               className="lgw-container__union"
               style={{ display: "none" }}
               aria-hidden="true"
             >
-              <canvas ref={shadowCanvasRef} className="lgw-container__union-shadow" />
-
-              {/* backdrop-filter is set through a CSS variable so re-renders don't drop url(#disp) */}
+              {/* Live backdrop-filter masked synchronously via inline DOM <mask> */}
               <div ref={unionBackdropRef} className="lgw-container__union-backdrop" />
 
-              <canvas ref={opticsCanvasRef} className="lgw-container__union-optics" />
+              {/* Full-DPR WebGL2 pure-SDF outer shadow + Beer–Lambert + 3D Schlick Fresnel */}
+              <canvas
+                ref={surfaceCanvasRef}
+                className="lgw-container__union-surface lgw-container__union-optics"
+              />
             </div>
           </>
         )}

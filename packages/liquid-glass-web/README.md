@@ -17,10 +17,13 @@ install it for you; with Yarn, run `yarn add motion` as well.
 import {
   GlassStage,
   GlassContainer,
+  GlassSurface,
   GlassTabBar,
   GlassOrb,
   GlassSwitch,
   GlassSlider,
+  GlassButton,
+  GlassScrollEdge,
 } from "@pavlonekrasov/liquid-glass-web";
 import "@pavlonekrasov/liquid-glass-web/styles.css";
 ```

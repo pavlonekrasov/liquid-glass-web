@@ -565,8 +565,15 @@ export function HicStage({
       let sceneUploaded = !sceneDirty;
       let chromeUploaded = !chromeDirty;
 
-      while (gl.getError() !== gl.NO_ERROR) {
-        // drain
+      // gl.getError() waits for the GPU to finish, which stalls frames for tens of
+      // milliseconds. Only check it until the first upload is verified; after that a
+      // failed upload still throws, and the next paint uploads again.
+      const checkGlErrors = !verifiedLiveTexture;
+      const uploadSucceeded = () => !checkGlErrors || gl.getError() === gl.NO_ERROR;
+      if (checkGlErrors) {
+        while (gl.getError() !== gl.NO_ERROR) {
+          // drain
+        }
       }
 
       // getElementImageDefaultSize may only be called inside canvas.onpaint.
@@ -584,7 +591,7 @@ export function HicStage({
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
             gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 0);
             gl.texElementSubImage2D(gl.TEXTURE_2D, 0, 0, 0, sceneEl);
-            if (gl.getError() === gl.NO_ERROR) {
+            if (uploadSucceeded()) {
               sceneUploaded = true;
             } else {
               uploadThrew = true;
@@ -609,7 +616,7 @@ export function HicStage({
             gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
             gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, 1);
             gl.texElementSubImage2D(gl.TEXTURE_2D, 0, 0, 0, chromeEl);
-            if (gl.getError() === gl.NO_ERROR) {
+            if (uploadSucceeded()) {
               chromeUploaded = true;
             } else {
               uploadThrew = true;

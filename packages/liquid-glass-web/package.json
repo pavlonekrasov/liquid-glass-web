@@ -1,6 +1,6 @@
 {
   "name": "@pavlonekrasov/liquid-glass-web",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Apple's Liquid Glass for the web: React components that refract and light whatever is behind them, like real glass.",
   "license": "MIT",
   "author": "Pavlo Nekrasov",

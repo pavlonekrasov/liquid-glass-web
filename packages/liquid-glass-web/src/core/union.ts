@@ -43,8 +43,22 @@ export interface PolySminOpticsParams {
   readonly edgeRgb: RgbColor;
   readonly edgeAlpha: number;
   readonly borderWidth: number;
-  /** Pixel scale: 1 while animating, sheetScale(dpr) once settled. */
+  /** Optional outer SDF contact shadow strength (0 omits shadow; >0 renders pure fringe-free outer shadow). */
+  readonly shadowAlpha?: number;
+  /** Optional outer canvas padding in CSS px when shadowAlpha > 0 (default 0). */
+  readonly padCss?: number;
+  /** Pixel scale: sheetScale(dpr) on every frame (never downgraded to 1x during motion). */
   readonly scale: number;
+}
+
+export interface CachedRimLut {
+  readonly key: string;
+  readonly bins: number;
+  readonly cosA: number;
+  readonly sinA: number;
+  readonly bezel: number;
+  readonly hA: Float32Array;
+  readonly sA: Float32Array;
 }
 
 const fmt = (n: number): string => String(Math.round(n * 100) / 100);
@@ -95,7 +109,7 @@ export function buildPolySminPath(
   a: UnionCapsule,
   b: UnionCapsule,
   k: number,
-  samples = 44,
+  samples = 48,
 ): PolySminContour | null {
   if (k <= 0.001) return null;
   if (a.hw <= 1 || a.hh <= 1 || b.hw <= 1 || b.hh <= 1) return null;
@@ -166,8 +180,16 @@ export function buildPolySminPath(
   }
 
   const parts: string[] = [];
+  const leftEdgeX = left.cx - left.hw;
+  const rightEdgeX = right.cx + right.hw;
   parts.push(`M ${fmt(lx0)} ${fmt(left.cy + left.hh)}`);
-  parts.push(`A ${fmt(rL)} ${fmt(rL)} 0 0 1 ${fmt(lx0)} ${fmt(left.cy - left.hh)}`);
+  if (rL < left.hh - 0.05) {
+    parts.push(`A ${fmt(rL)} ${fmt(rL)} 0 0 1 ${fmt(leftEdgeX)} ${fmt(left.cy + left.hh - rL)}`);
+    parts.push(`L ${fmt(leftEdgeX)} ${fmt(left.cy - left.hh + rL)}`);
+    parts.push(`A ${fmt(rL)} ${fmt(rL)} 0 0 1 ${fmt(lx0)} ${fmt(left.cy - left.hh)}`);
+  } else {
+    parts.push(`A ${fmt(rL)} ${fmt(rL)} 0 0 1 ${fmt(lx0)} ${fmt(left.cy - left.hh)}`);
+  }
   if (xJoinL > lx0 + 0.05) {
     parts.push(`L ${fmt(xJoinL)} ${fmt(topPts[0].y)}`);
   }
@@ -177,7 +199,13 @@ export function buildPolySminPath(
   if (rx1 > xJoinR + 0.05) {
     parts.push(`L ${fmt(rx1)} ${fmt(right.cy - right.hh)}`);
   }
-  parts.push(`A ${fmt(rR)} ${fmt(rR)} 0 0 1 ${fmt(rx1)} ${fmt(right.cy + right.hh)}`);
+  if (rR < right.hh - 0.05) {
+    parts.push(`A ${fmt(rR)} ${fmt(rR)} 0 0 1 ${fmt(rightEdgeX)} ${fmt(right.cy - right.hh + rR)}`);
+    parts.push(`L ${fmt(rightEdgeX)} ${fmt(right.cy + right.hh - rR)}`);
+    parts.push(`A ${fmt(rR)} ${fmt(rR)} 0 0 1 ${fmt(rx1)} ${fmt(right.cy + right.hh)}`);
+  } else {
+    parts.push(`A ${fmt(rR)} ${fmt(rR)} 0 0 1 ${fmt(rx1)} ${fmt(right.cy + right.hh)}`);
+  }
   if (rx1 > xJoinR + 0.05) {
     parts.push(`L ${fmt(xJoinR)} ${fmt(botPts[botPts.length - 1].y)}`);
   }
@@ -190,6 +218,74 @@ export function buildPolySminPath(
     path: parts.join(" "),
     gap,
     saddleDepth: -saddle,
+  };
+}
+
+/**
+ * Single-capsule Snell displacement tile with alpha = 0 outside the capsule so
+ * Tier 1 can compose static Bar + translating Orb `<feImage>` nodes at 120 FPS
+ * during merge motion with ZERO PNG bakes per frame.
+ */
+export function buildCapsuleDisplacementMap(
+  widthCss: number,
+  heightCss: number,
+  radiusCss: number,
+  optics: GlassOptics,
+  scale = 1,
+): PolySminDisplacementResult {
+  const hw = widthCss * 0.5;
+  const hh = heightCss * 0.5;
+  const r = Math.min(radiusCss, hw, hh);
+  const effBezel = Math.max(2, Math.min(optics.bezel, r));
+  const clampedOptics: GlassOptics = { ...optics, bezel: effBezel };
+  const stats = buildClampTable(clampedOptics);
+  const { dMax, clamped } = stats;
+  const unit = dMax > 0 ? 1 / dMax : 0;
+  const maxIdx = clamped.length - 1;
+
+  const pw = Math.max(2, Math.round(widthCss * scale));
+  const ph = Math.max(2, Math.round(heightCss * scale));
+  const dxCss = widthCss / pw;
+  const dyCss = heightCss / ph;
+  const data = new Uint8ClampedArray(pw * ph * 4);
+
+  for (let j = 0; j < ph; j++) {
+    const y = (j + 0.5) * dyCss - hh;
+    for (let i = 0; i < pw; i++) {
+      const x = (i + 0.5) * dxCss - hw;
+      const idx = (j * pw + i) * 4;
+      const sample = roundedRectSdf(x, y, hw, hh, r);
+      const s = -sample.distance;
+      if (s <= 0) {
+        data[idx] = NEUTRAL;
+        data[idx + 1] = NEUTRAL;
+        data[idx + 2] = NEUTRAL;
+        data[idx + 3] = 0;
+        continue;
+      }
+      if (s >= effBezel || unit === 0) {
+        data[idx] = NEUTRAL;
+        data[idx + 1] = NEUTRAL;
+        data[idx + 2] = NEUTRAL;
+        data[idx + 3] = 255;
+        continue;
+      }
+
+      const at = (s / effBezel) * maxIdx;
+      const ti = Math.min(maxIdx - 1, Math.floor(at));
+      const tf = at - ti;
+      const disp = (clamped[ti] * (1 - tf) + clamped[ti + 1] * tf) * unit;
+
+      data[idx] = encodeDisplacement(-sample.nx * disp);
+      data[idx + 1] = encodeDisplacement(-sample.ny * disp);
+      data[idx + 2] = NEUTRAL;
+      data[idx + 3] = 255;
+    }
+  }
+
+  return {
+    tile: { width: pw, height: ph, data },
+    dMax,
   };
 }
 
@@ -250,7 +346,7 @@ export function buildPolySminDisplacementMap(
 
       data[idx] = encodeDisplacement(-nx * disp);
       data[idx + 1] = encodeDisplacement(-ny * disp);
-      data[idx + 2] = encodeDisplacement(0);
+      data[idx + 2] = NEUTRAL;
       data[idx + 3] = 255;
     }
   }
@@ -264,20 +360,15 @@ export function buildPolySminDisplacementMap(
 const RIM_S_BINS = 64;
 const RIM_D_BINS = 64;
 
-interface CachedRimLut {
-  readonly key: string;
-  readonly cosA: number;
-  readonly sinA: number;
-  readonly bezel: number;
-  readonly hA: Float32Array;
-  readonly sA: Float32Array;
-}
-
 const rimLutCache = new Map<string, CachedRimLut>();
 const MAX_RIM_LUT_CACHE = 12;
 
-/** Cached 65x65 LUT of dualRimTerms().box over (depth, N·L), within 0.5/255 of per-pixel integration. */
-function getRimLut(optics: GlassOptics, lighting: DualLightingSpec, pixel: number): CachedRimLut {
+/** Cached 65x65 LUT of dualRimTerms().box over (depth, N·L), shared by WebGL2 and CPU union renderers. */
+export function getRimLut(
+  optics: GlassOptics,
+  lighting: DualLightingSpec,
+  pixel: number,
+): CachedRimLut {
   const key = [
     optics.profile,
     optics.bezel.toFixed(2),
@@ -307,7 +398,6 @@ function getRimLut(optics: GlassOptics, lighting: DualLightingSpec, pixel: numbe
   for (let di = 0; di <= RIM_D_BINS; di++) {
     const dot = -1 + (2 * di) / RIM_D_BINS;
     const perp = Math.sqrt(Math.max(0, 1 - dot * dot));
-    // Construct a unit normal (nx, ny) whose dot with (cosA, sinA) equals `dot`
     const nx = dot * cosA - perp * sinA;
     const ny = dot * sinA + perp * cosA;
     for (let si = 0; si <= RIM_S_BINS; si++) {
@@ -319,7 +409,15 @@ function getRimLut(optics: GlassOptics, lighting: DualLightingSpec, pixel: numbe
     }
   }
 
-  const entry: CachedRimLut = { key, cosA, sinA, bezel: optics.bezel, hA, sA };
+  const entry: CachedRimLut = {
+    key,
+    bins: RIM_S_BINS,
+    cosA,
+    sinA,
+    bezel: optics.bezel,
+    hA,
+    sA,
+  };
   if (rimLutCache.size >= MAX_RIM_LUT_CACHE) {
     const oldest = rimLutCache.keys().next().value;
     if (oldest !== undefined) rimLutCache.delete(oldest);
@@ -328,9 +426,17 @@ function getRimLut(optics: GlassOptics, lighting: DualLightingSpec, pixel: numbe
   return entry;
 }
 
+function gaussHalfPlane(d: number, sigma: number): number {
+  const x = Math.max(-6, Math.min(6, d / sigma));
+  const t = Math.tanh(0.79788456 * x * (1 + 0.044715 * x * x));
+  return 0.5 - 0.5 * t;
+}
+
 /**
- * Paints tint, scrim, Fresnel rim and edge ring over the fused shape. Uses the same
- * equations as optics.ts, so merged and unmerged surfaces look the same.
+ * Pure-math unified SDF shadow + Beer–Lambert tint + scrim + Fresnel rim + edge ring.
+ * Evaluates outer contact shadow via exact Gaussian half-plane convolution strictly for
+ * `1 - coverage` (zero `destination-out` dark staircase fringe). Used both by Node unit
+ * tests and as CPU fallback if WebGL2 is unavailable.
  */
 export function bakePolySminOptics(
   widthCss: number,
@@ -340,10 +446,13 @@ export function bakePolySminOptics(
   k: number,
   params: PolySminOpticsParams,
 ): Tile {
-  const pw = Math.max(2, Math.round(widthCss * params.scale));
-  const ph = Math.max(2, Math.round(heightCss * params.scale));
-  const dxCss = widthCss / pw;
-  const dyCss = heightCss / ph;
+  const pad = Math.max(0, params.padCss ?? 0);
+  const totalW = widthCss + pad * 2;
+  const totalH = heightCss + pad * 2;
+  const pw = Math.max(2, Math.round(totalW * params.scale));
+  const ph = Math.max(2, Math.round(totalH * params.scale));
+  const dxCss = totalW / pw;
+  const dyCss = totalH / ph;
   const pixel = 0.5 * (dxCss + dyCss);
   const data = new Uint8ClampedArray(pw * ph * 4);
 
@@ -360,9 +469,19 @@ export function bakePolySminOptics(
   const sigma = absorptionFor(params.bodyAlpha, effOptics.thickness);
   const rimFloor = Math.min(params.rimAlphaMin, params.bodyAlpha);
 
-  const { bodyRgb, scrimRgb, scrimAlpha, edgeRgb, edgeAlpha, borderWidth, lighting } = params;
+  const {
+    bodyRgb,
+    scrimRgb,
+    scrimAlpha,
+    edgeRgb,
+    edgeAlpha,
+    borderWidth,
+    lighting,
+    shadowAlpha = 0,
+  } = params;
   const hiRgb = lighting.highlight;
   const shRgb = lighting.shade;
+  const hasShadow = shadowAlpha > 0.001;
 
   // Flat interior color, used for the bulk fill
   let flatR = bodyRgb.r;
@@ -387,12 +506,27 @@ export function bakePolySminOptics(
   const bezelLimit = effBezel + halfPx;
 
   for (let j = 0; j < ph; j++) {
-    const y = (j + 0.5) * dyCss;
+    const y = (j + 0.5) * dyCss - pad;
     for (let i = 0; i < pw; i++) {
-      const x = (i + 0.5) * dxCss;
+      const x = (i + 0.5) * dxCss - pad;
       const { dist, gx, gy } = evalTwoCapsuleSminWithGrad(x, y, capA, capB, k);
       const coverage = clamp01(0.5 - dist / pixel);
-      if (coverage <= 0) continue;
+
+      if (coverage <= 0) {
+        if (!hasShadow || dist > 30) continue;
+        const dNear = evalTwoCapsuleSmin(x, y - 1, capA, capB, k);
+        const dFar = evalTwoCapsuleSmin(x, y - 6, capA, capB, k);
+        const shNear = gaussHalfPlane(dNear, 1.5) * (shadowAlpha * 0.52);
+        const shFar = gaussHalfPlane(dFar, 9) * (shadowAlpha * 0.72);
+        const sA = clamp01(shNear + shFar * (1 - shNear));
+        if (sA <= 1 / 510) continue;
+        const idx = (j * pw + i) * 4;
+        data[idx] = 15;
+        data[idx + 1] = 20;
+        data[idx + 2] = 32;
+        data[idx + 3] = Math.round(255 * sA);
+        continue;
+      }
 
       const idx = (j * pw + i) * 4;
       const s = -dist;
@@ -406,14 +540,41 @@ export function bakePolySminOptics(
         continue;
       }
 
-      // Body tint (matches tintField() in optics.ts)
+      // Match exact W3C CSS stacking order inside .lgw-glass-surface (isolation: isolate):
+      //   1. 1px border (bottom) -> 2. ::before body tint -> 3. .lgw-scrim -> 4. ::after Fresnel (top)
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let alpha = 0;
+
+      // 1. 1px edge ring (bottom layer, matches .lgw-glass-surface border)
+      if (borderWidth > 0 && edgeAlpha > 0.005 && s - halfPx < borderWidth) {
+        const overlap =
+          Math.max(0, Math.min(borderWidth, s + halfPx) - Math.max(0, s - halfPx)) / pixel;
+        const eA = edgeAlpha * overlap;
+        if (eA > 1e-5) {
+          r = edgeRgb.r;
+          g = edgeRgb.g;
+          b = edgeRgb.b;
+          alpha = eA;
+        }
+      }
+
+      // 2. Body tint (::before, painted over border)
       const sBody = Math.min(Math.max(s, 0) + borderWidth, effBezel);
       const h = surfaceHeight(effOptics, sBody);
-      let r = bodyRgb.r;
-      let g = bodyRgb.g;
-      let b = bodyRgb.b;
-      let alpha = Math.max(rimFloor, 1 - Math.exp(-sigma * h));
+      const bodyA = Math.max(rimFloor, 1 - Math.exp(-sigma * h));
+      if (bodyA > 1e-5) {
+        const outA = bodyA + alpha * (1 - bodyA);
+        if (outA > 1e-6) {
+          r = (bodyRgb.r * bodyA + r * alpha * (1 - bodyA)) / outA;
+          g = (bodyRgb.g * bodyA + g * alpha * (1 - bodyA)) / outA;
+          b = (bodyRgb.b * bodyA + b * alpha * (1 - bodyA)) / outA;
+        }
+        alpha = outA;
+      }
 
+      // 3. Adaptive scrim (.lgw-scrim, painted over ::before)
       if (scrimAlpha > 0.005) {
         const outA = scrimAlpha + alpha * (1 - scrimAlpha);
         if (outA > 1e-6) {
@@ -424,7 +585,7 @@ export function bakePolySminOptics(
         alpha = outA;
       }
 
-      // Fresnel rim from the cached LUT
+      // 4. Fresnel rim from the cached LUT (::after, painted ON TOP of border + body + scrim)
       if (s < effBezel) {
         const gLen = Math.hypot(gx, gy);
         if (gLen > 1e-4) {
@@ -463,24 +624,26 @@ export function bakePolySminOptics(
         }
       }
 
-      // 1px edge ring (matches the .lgw-glass-surface border)
-      if (borderWidth > 0 && edgeAlpha > 0.005 && s - halfPx < borderWidth) {
-        const overlap =
-          Math.max(0, Math.min(borderWidth, s + halfPx) - Math.max(0, s - halfPx)) / pixel;
-        const eA = edgeAlpha * overlap;
-        if (eA > 1e-5) {
-          const outA = eA + alpha * (1 - eA);
-          r = (edgeRgb.r * eA + r * alpha * (1 - eA)) / outA;
-          g = (edgeRgb.g * eA + g * alpha * (1 - eA)) / outA;
-          b = (edgeRgb.b * eA + b * alpha * (1 - eA)) / outA;
-          alpha = outA;
+      const gA = clamp01(alpha * coverage);
+      if (hasShadow && coverage < 0.999) {
+        const dNear = evalTwoCapsuleSmin(x, y - 1, capA, capB, k);
+        const dFar = evalTwoCapsuleSmin(x, y - 6, capA, capB, k);
+        const shNear = gaussHalfPlane(dNear, 1.5) * (shadowAlpha * 0.52);
+        const shFar = gaussHalfPlane(dFar, 9) * (shadowAlpha * 0.72);
+        const sA = clamp01(shNear + shFar * (1 - shNear)) * (1 - coverage);
+        const outA = clamp01(gA + sA);
+        if (outA > 1e-6) {
+          data[idx] = Math.round((r * gA + 15 * sA) / outA);
+          data[idx + 1] = Math.round((g * gA + 20 * sA) / outA);
+          data[idx + 2] = Math.round((b * gA + 32 * sA) / outA);
+          data[idx + 3] = Math.round(255 * outA);
         }
+      } else {
+        data[idx] = Math.round(r);
+        data[idx + 1] = Math.round(g);
+        data[idx + 2] = Math.round(b);
+        data[idx + 3] = Math.round(255 * gA);
       }
-
-      data[idx] = Math.round(r);
-      data[idx + 1] = Math.round(g);
-      data[idx + 2] = Math.round(b);
-      data[idx + 3] = Math.round(255 * clamp01(alpha * coverage));
     }
   }
 

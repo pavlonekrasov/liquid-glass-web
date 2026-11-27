@@ -243,17 +243,22 @@ export function GlassOrb({
   }, [useHic, frostOnly, container.mergeRadius, orbId, registerUnionElement, notifyUnionMove]);
 
   useEffect(() => {
-    if (!stage.hicBridge) return;
-    paintOrb(false);
-    const raf = requestAnimationFrame(() => paintOrb(false));
+    const bridge = stage.hicBridge;
+    if (!bridge) return;
     const onResize = () => paintOrb(false);
     window.addEventListener("resize", onResize);
     return () => {
-      cancelAnimationFrame(raf);
       window.removeEventListener("resize", onResize);
-      stage.hicBridge?.removeSurface(`orb-${orbId}`);
+      bridge.removeSurface(`orb-${orbId}`);
     };
-  }, [stage.hicBridge, stage.layoutVersion, orbId, paintOrb]);
+  }, [stage.hicBridge, orbId, paintOrb]);
+
+  useEffect(() => {
+    if (!stage.hicBridge) return;
+    paintOrb(false);
+    const raf = requestAnimationFrame(() => paintOrb(false));
+    return () => cancelAnimationFrame(raf);
+  }, [stage.hicBridge, stage.layoutVersion, paintOrb]);
 
   useEffect(
     () => () => {
