@@ -1,6 +1,6 @@
 {
   "name": "@pavlonekrasov/liquid-glass-web",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Physically grounded Apple iOS 26/27 Liquid Glass material and interactive component system for the web.",
   "license": "MIT",
   "author": "Pavlo Nekrasov",
