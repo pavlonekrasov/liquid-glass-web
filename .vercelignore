@@ -1,0 +1,3 @@
+# Local-only folders that the site build does not need
+/dist
+/.claude

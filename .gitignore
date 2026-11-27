@@ -16,3 +16,4 @@ apps/web/src/components/ShowcaseExperience.css
 apps/web/src/components/CodeEditor.tsx
 apps/web/src/components/CodeEditor.css
 apps/web/public/textures/paper-scan.jpg
+.vercel
