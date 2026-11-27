@@ -1,6 +1,6 @@
 # @pavlonekrasov/liquid-glass-web
 
-Physically grounded **Apple iOS 26/27 Liquid Glass** material and interactive component system for the web.
+Apple's **Liquid Glass** for the web: React components that refract and light whatever is behind them, like real glass.
 
 ## Install
 
@@ -25,7 +25,7 @@ import {
 import "@pavlonekrasov/liquid-glass-web/styles.css";
 ```
 
-Pure zero-DOM physics utilities are available at `@pavlonekrasov/liquid-glass-web/core`.
+The underlying math, with no React or DOM, is available at `@pavlonekrasov/liquid-glass-web/core`.
 
 Try it live at [liquidglass.pavlonekrasov.com](https://liquidglass.pavlonekrasov.com) and tune every parameter in the [Material Lab](https://liquidglass.pavlonekrasov.com/lab).
 

@@ -1,18 +1,18 @@
 # liquid-glass-web
 
-> Physically grounded **Apple iOS 26/27 Liquid Glass** material and interactive component system for the web.
+> Apple's **Liquid Glass** for the web: React components that refract and light whatever is behind them, like real glass.
 
 **Live demo:** [liquidglass.pavlonekrasov.com](https://liquidglass.pavlonekrasov.com) · **Material Lab:** [liquidglass.pavlonekrasov.com/lab](https://liquidglass.pavlonekrasov.com/lab)
 
-`liquid-glass-web` is not a `backdrop-filter: blur()` approximation or a single-browser demo. It combines real `h(0) = 0` Snell refraction, 11-band continuous Cauchy dispersion, 3D bezel-normal dual-bounce Schlick Fresnel, Beer–Lambert volumetric absorption, `GlassContainer` smooth-min (`smin`) liquid meniscus fusion, Apple SwiftUI `Spring(duration:bounce:)` physics, and live scroll-adaptive WCAG AA contrast across a 4-tier progressive enhancement pipeline.
+Most "glass" on the web is a blurred box. `liquid-glass-web` bends the content behind it the way real glass does, with soft rainbow edges and highlights that catch the light, so it looks like the glass in iOS 26. Shapes melt into each other when they get close, controls spring like native ones, and text on top stays readable while the page scrolls. It works in every major browser and picks the best rendering each one supports.
 
 ---
 
-## Tri-Channel Adoption
+## What's included
 
-1. **npm Library (`packages/liquid-glass-web`):** Tree-shakeable React primitives (`@pavlonekrasov/liquid-glass-web`), zero-DOM pure physics math (`@pavlonekrasov/liquid-glass-web/core`), and scoped CSS (`@pavlonekrasov/liquid-glass-web/styles.css`).
-2. **Showcase & DialKit Material Lab ([live](https://liquidglass.pavlonekrasov.com)):** Live scrollable UI demos ([`/`](https://liquidglass.pavlonekrasov.com)) and an interactive optical playground ([`/lab`](https://liquidglass.pavlonekrasov.com/lab)) powered by **DialKit** with one-click **Copy JSX & Props** export.
-3. **Installable Agent Skill (`skills/liquid-glass-web/SKILL.md`):** Teaches coding agents (Claude Code, Cursor, Codex, Antigravity) the exact public API, semantic presets, `smin` fusion rules, and accessibility guardrails.
+1. **npm package (`packages/liquid-glass-web`):** React components (`@pavlonekrasov/liquid-glass-web`), their styles (`@pavlonekrasov/liquid-glass-web/styles.css`), and the underlying math on its own, with no React or DOM (`@pavlonekrasov/liquid-glass-web/core`).
+2. **Demo site & Material Lab ([live](https://liquidglass.pavlonekrasov.com)):** See the components in a real scrolling page ([`/`](https://liquidglass.pavlonekrasov.com)), then tune every setting with sliders in the [Material Lab](https://liquidglass.pavlonekrasov.com/lab) and copy the JSX.
+3. **Agent Skill (`skills/liquid-glass-web/SKILL.md`):** Teaches coding agents (Claude Code, Cursor, Codex, Antigravity) how to use the library correctly.
 
 ---
 
@@ -53,8 +53,8 @@ export function NavigationShell() {
         <GlassContainer id="nav" mergeRadius={22}>
           <GlassTabBar
             variant="regular"       // "regular" | "clear" | "tinted"
-            interactive             // .interactive() touch sheen & press compression
-            adaptiveContrast        // automatic >= 4.5:1 WCAG AA polarity & scrim
+            interactive             // glows and squishes when pressed
+            adaptiveContrast        // keeps labels readable over any background
             items={tabs}
             value={activeTab}
             onChange={setActiveTab}
@@ -76,7 +76,9 @@ export function NavigationShell() {
 }
 ```
 
-For SSR frameworks (Next.js App Router, Remix), stamp Chromium's Tier 1 capability attribute before first paint in `<head>`:
+Shapes inside a `GlassContainer` merge into one piece of glass when they come within `mergeRadius` of each other.
+
+With server rendering (Next.js App Router, Remix), add this script to `<head>` so Chromium gets the full effect from the first frame:
 
 ```tsx
 import { CHROMIUM_REFRACT_INIT_SCRIPT } from "@pavlonekrasov/liquid-glass-web";
@@ -86,68 +88,70 @@ import { CHROMIUM_REFRACT_INIT_SCRIPT } from "@pavlonekrasov/liquid-glass-web";
 
 ---
 
-## Semantic Material Presets
+## Variants
 
-| Variant | Profile | Bezel / Thickness | Frost | Body Opacity | Best For |
-| --- | --- | --- | --- | --- | --- |
-| `regular` *(default)* | `circle` (`minJ ≈ 0.36`) | `16 px / 22 px` | `1.4 px` | `0.18` | Mixed scrolling UI, floating nav bars, toolbars |
-| `clear` | `circle` | `16 px / 22 px` | `0.8 px` | `0.06` | Dark scenes, vivid photography, video overlays |
-| `tinted` | `circle` | `16 px / 22 px` | `6.0 px` | `0.45` | Dense daylight typography and light editorial feeds |
+| Variant | Look | Best for |
+| --- | --- | --- |
+| `regular` *(default)* | Lightly frosted, balances see-through and readable | Most UI: nav bars, toolbars, scrolling pages |
+| `clear` | Barely frosted, the most see-through | Photos, video, dark scenes |
+| `tinted` | Heavily frosted, closer to solid | Text-heavy or very bright pages |
 
-All everyday props (`variant`, `shapeProfile`, `refraction`, `dispersion`, `frost`, `interactive`, `adaptiveContrast`, `engine`) map onto validated optical physics, with an `optics={{ ... }}` escape hatch for custom art direction.
-
----
-
-## 4-Tier Progressive Enhancement Matrix
-
-| Tier | Engine Value | Browser Target | Optical Pipeline |
-| --- | --- | --- | --- |
-| **Tier 0** | `html-in-canvas` | Chrome 157+ (`<canvas content="drawable" layoutsubtree>`) | WebGL2 Float32, 11-band Cauchy `n(λ)`, `polySmin` meniscus fusion + saddle damping, 4× Fresnel, `.interactive()` touch glow, `0 ms` PNG bakes |
-| **Tier 1** | `svg-backdrop` | Chromium (`backdrop-filter: url(#…)`) | 1-tap linear `feDisplacementMap` GPU fast-path (100+ FPS) + seam-free opaque-piece Fresnel & Beer–Lambert luminance masks |
-| **Tier 2** | `svg-content` | Safari & Firefox (`filter: url(#…-cN)`) | Aave content-path 5-band continuous spectral dispersion (`0/255` white/grey drift) + Safari cache-busting IDs + 1:1 luminance cutout mask |
-| **Tier 3** | `frost` | Reduced transparency / High contrast / Forced colors | Accessible high-contrast opaque DOM surfaces honoring all 4 media queries |
+Fine-tune with props like `refraction`, `dispersion` and `frost`, or pass `optics={{ ... }}` for full control.
 
 ---
 
-## Accessibility by Construction
+## Browser Support
 
-- **Real interactive HTML & ARIA APG roles:** `tablist` + roving `tabindex` (`GlassTabBar`), `role="switch"` with non-color `|`/`○` markers (`GlassSwitch`), `role="slider"` with full arrow/Page/Home/End keys (`GlassSlider`), `≥ 44×44 px` touch targets throughout.
-- **Scroll-adaptive WCAG AA (`≥ 4.5:1`):** Separates 10-point area-weighted polarity sampling (Schmitt trigger `[0.24, 0.56]` with `220 ms` temporal dwell) from worst-case contrast sampling to solve minimal seamless full-capsule scrims with zero white-flash chatter.
-- **All 4 preference media queries honored:** `prefers-reduced-motion: reduce`, `prefers-reduced-transparency: reduce`, `prefers-contrast: more`, and `forced-colors: active`.
+`engine="auto"` picks the best option for each browser:
+
+| Engine | Browser | What you get |
+| --- | --- | --- |
+| `html-in-canvas` | Chrome 157+ | The full effect, rendered with WebGL |
+| `svg-backdrop` | Other Chromium browsers (Chrome, Edge, Arc…) | Full refraction through a fast SVG filter |
+| `svg-content` | Safari & Firefox | Refraction and rainbow edges through an SVG fallback |
+| `frost` | Reduced transparency, high contrast or forced colors | Solid, high-contrast surfaces |
 
 ---
 
-## Workspace Development & Verification
+## Accessibility
+
+- **Real controls:** proper HTML and ARIA roles with full keyboard support for the tab bar, switch and slider, and touch targets of at least 44×44 px.
+- **Readable text:** labels keep WCAG AA contrast (4.5:1) as content scrolls behind the glass, without flickering.
+- **Respects user settings:** reduced motion, reduced transparency, increased contrast and forced colors.
+
+---
+
+## Development
 
 ```bash
 pnpm install
-pnpm test            # Deterministic Node physics, legibility, spring & CSS contract tests
-pnpm typecheck       # Strict TypeScript checks across packages/* and apps/*
-pnpm lint            # ESLint (--max-warnings 0)
-pnpm build           # tsup (ESM + CJS + d.ts + styles.css) & Next.js production build
-pnpm publint         # Strict npm exports & packaging validation
-pnpm dev             # Launch interactive Showcase (/) and DialKit Material Lab (/lab)
+pnpm test            # Unit tests
+pnpm typecheck       # TypeScript checks
+pnpm lint            # ESLint
+pnpm build           # Build the package and the demo site
+pnpm publint         # Check the package's exports
+pnpm dev             # Run the demo site (/) and Material Lab (/lab)
 ```
 
-Headless multi-DPR (`1×`, `1.25×`, `1.5×`, `2×`) browser verification:
+Visual checks in real browsers at several screen densities:
 
 ```bash
-# Installed Chrome (Tier 0 HTML-in-Canvas + Tier 1 SVG Backdrop + Tier 2)
+# Chrome
 CHANNEL=chrome node scripts/verify-visuals.mjs
 
-# Installed Firefox (Gecko WebDriver BiDi — automatic Tier 2 Aave Content-Path)
+# Firefox
 pnpm verify:firefox
 ```
 
-See [docs/architecture.md](docs/architecture.md) for deep technical details.
+Curious how it works under the hood? See [docs/architecture.md](docs/architecture.md).
 
 ---
 
-## Credits & Inspirations
+## Credits
 
-- **[DialKit](https://dialkit.dev)** by **[Josh Puckett](https://github.com/joshpuckett/dialkit)** — live parameter tuning panel powering the interactive [Material Lab](https://liquidglass.pavlonekrasov.com/lab).
-- **Apple Human Interface Guidelines / WWDC 2025 Liquid Glass** — optical material language, `GlassEffectContainer` liquid meniscus merging, `.interactive()` touch illumination, and `Spring(duration:bounce:)` fluid motion.
-- **Aave** — cross-browser SVG `filter: url()` content-path refraction technique adapted for Tier 2 Safari/Firefox fallback.
+- **[DialKit](https://dialkit.dev)** by **[Josh Puckett](https://github.com/joshpuckett/dialkit)**: the slider panel behind the [Material Lab](https://liquidglass.pavlonekrasov.com/lab).
+- **Apple's Liquid Glass (WWDC 2025)**: the design language, including merging shapes, the touch glow and spring motion.
+- **Aave**: the SVG technique used for refraction in Safari and Firefox.
 
 ## License
 

@@ -72,7 +72,7 @@ const fontVariables = [lora, loraExt, geist, geistExt].map((f) => f.variable).jo
 export const metadata: Metadata = {
   title: "liquid-glass-web: Liquid Glass for the web",
   description:
-    "React primitives and zero-DOM optics for Apple iOS 26/27 Liquid Glass: h(0)=0 Snell refraction, Cauchy dispersion, dual-bounce Fresnel, smin meniscus fusion, and 4-tier progressive enhancement.",
+    "Apple's Liquid Glass for the web. React components that refract and light whatever is behind them, like real glass, in every major browser.",
 };
 
 export default function RootLayout({
