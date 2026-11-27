@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
-import type {
-  GlassEnginePreference,
-  GlassShapeProfile,
-  GlassVariant,
+import {
+  cssColorFormat,
+  parseCssColor,
+  type GlassEnginePreference,
+  type GlassShapeProfile,
+  type GlassVariant,
 } from "@pavlonekrasov/liquid-glass-web";
 import "./CopyCodeDrawer.css";
 
@@ -45,6 +47,13 @@ const EXPORT_LANGUAGES: readonly ExportLanguageOption[] = [
   { id: "jsx", label: "JSX", filename: "Example.jsx" },
 ];
 
+/** The default tint written as hex is left out; any other color or syntax is exported as written. */
+function isDefaultTint(tint: string): boolean {
+  const parsed = parseCssColor(tint);
+  if (!parsed || cssColorFormat(tint) !== "hex" || parsed.alpha < 1) return false;
+  return Math.round(parsed.r) === 14 && Math.round(parsed.g) === 18 && Math.round(parsed.b) === 28;
+}
+
 export function generateLabCode(c: ExportableLabConfig, language: ExportLanguage = "tsx"): string {
   const ts = language === "tsx";
 
@@ -52,7 +61,7 @@ export function generateLabCode(c: ExportableLabConfig, language: ExportLanguage
   if (Math.abs(c.ior - 1.5168) > 0.002) opticsLines.push(`  ior: ${c.ior.toFixed(4)},`);
   if (c.bezel !== 16) opticsLines.push(`  bezel: ${c.bezel},`);
   if (c.thickness !== 22) opticsLines.push(`  thickness: ${c.thickness},`);
-  if (c.tintColor.toLowerCase() !== "#0e121c") {
+  if (!isDefaultTint(c.tintColor)) {
     opticsLines.push(`  tintColor: "${c.tintColor}",`);
   }
   if (Math.abs(c.bodyOpacity - 0.18) > 0.01) {

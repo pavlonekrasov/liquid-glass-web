@@ -1,3 +1,5 @@
+import { resolveCssColor } from "./cssColor.ts";
+
 export type SRGB = readonly [number, number, number];
 export type RgbColor = { readonly r: number; readonly g: number; readonly b: number };
 export type OKLCH = readonly [lightness: number, chroma: number, hue: number];
@@ -49,24 +51,14 @@ export function srgbToOklch([r, g, b]: SRGB): OKLCH {
   return [lightness, Math.hypot(a, bAxis), hue];
 }
 
-/** Parse a 3- or 6-digit hex color string into sRGB bytes [0..255]. */
+/**
+ * Parse a CSS color (hex with or without "#", or any CSS color syntax) into sRGB
+ * bytes [0..255], dropping alpha. Use parseCssColor to keep alpha.
+ */
 export function hexToRgb(hex: string, fallback: RgbColor = { r: 14, g: 18, b: 28 }): RgbColor {
-  const clean = hex.trim().replace(/^#/, "");
-  if (/^[0-9a-fA-F]{3}$/.test(clean)) {
-    return {
-      r: parseInt(clean[0] + clean[0], 16),
-      g: parseInt(clean[1] + clean[1], 16),
-      b: parseInt(clean[2] + clean[2], 16),
-    };
-  }
-  if (/^[0-9a-fA-F]{6}$/.test(clean)) {
-    return {
-      r: parseInt(clean.slice(0, 2), 16),
-      g: parseInt(clean.slice(2, 4), 16),
-      b: parseInt(clean.slice(4, 6), 16),
-    };
-  }
-  return fallback;
+  const clean = hex.trim();
+  const parsed = resolveCssColor(/^[0-9a-f]{3,8}$/i.test(clean) ? `#${clean}` : clean);
+  return parsed ? { r: parsed.r, g: parsed.g, b: parsed.b } : fallback;
 }
 
 /** Format an sRGB color into lowercase #rrggbb hex. */

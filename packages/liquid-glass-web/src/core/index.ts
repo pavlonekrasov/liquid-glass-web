@@ -1,4 +1,5 @@
 export * from "./color.ts";
+export * from "./cssColor.ts";
 export * from "./sdf.ts";
 export * from "./overlay.ts";
 export * from "./optics.ts";

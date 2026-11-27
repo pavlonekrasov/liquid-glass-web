@@ -1,4 +1,5 @@
-import { hexToRgb, type RgbColor } from "./color.ts";
+import type { RgbColor } from "./color.ts";
+import { resolveCssColor } from "./cssColor.ts";
 import type { LegibilityPolarity } from "./legibility.ts";
 import { BK7, type GlassShapeProfile, type Srgba } from "./optics.ts";
 
@@ -24,6 +25,7 @@ export interface GlassOpticsOverride {
   readonly saturate?: number;
   readonly brightness?: number;
   readonly contrast?: number;
+  /** Any CSS color: hex, rgb(), hsl(), hwb(), lab(), lch(), oklab(), oklch(), color(display-p3 …), a name, or var() in the browser. */
   readonly tintColor?: string | RgbColor;
   readonly bodyOpacity?: number;
   readonly rimAlphaMin?: number;
@@ -232,12 +234,14 @@ export function resolveGlassConfig(
   const seed = props?.variant && props.variant !== base?.variant ? GLASS_VARIANTS[variant] : (base ?? GLASS_VARIANTS[variant]);
   const opt = props?.optics;
 
-  const tintColor: RgbColor =
-    opt?.tintColor !== undefined
-      ? typeof opt.tintColor === "string"
-        ? hexToRgb(opt.tintColor, seed.tintColor)
-        : opt.tintColor
+  // Any CSS color works here; its alpha scales the body opacity.
+  const parsedTint = typeof opt?.tintColor === "string" ? resolveCssColor(opt.tintColor) : null;
+  const tintColor: RgbColor = parsedTint
+    ? { r: parsedTint.r, g: parsedTint.g, b: parsedTint.b }
+    : typeof opt?.tintColor === "object"
+      ? opt.tintColor
       : seed.tintColor;
+  const tintColorAlpha = parsedTint?.alpha ?? 1;
 
   const refraction =
     props?.refraction !== undefined ? clamp(props.refraction, 0, 1.3) : seed.strength;
@@ -270,7 +274,8 @@ export function resolveGlassConfig(
     contrast: opt?.contrast !== undefined ? clamp(opt.contrast, 0.6, 1.4) : seed.contrast,
 
     tintColor,
-    tintAlpha: opt?.bodyOpacity !== undefined ? clamp(opt.bodyOpacity, 0, 0.85) : seed.tintAlpha,
+    tintAlpha:
+      (opt?.bodyOpacity !== undefined ? clamp(opt.bodyOpacity, 0, 0.85) : seed.tintAlpha) * tintColorAlpha,
     rimAlphaMin:
       opt?.rimAlphaMin !== undefined ? clamp(opt.rimAlphaMin, 0, 0.5) : seed.rimAlphaMin,
 

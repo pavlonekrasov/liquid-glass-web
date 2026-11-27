@@ -19,7 +19,10 @@ import {
   GlassStage,
   GlassSwitch,
   GlassTabBar,
-  rgbToHex,
+  cssColorFormat,
+  formatCssColor,
+  parseCssColor,
+  type CssColorFormat,
   type GlassEnginePreference,
   type GlassShapeProfile,
   type GlassTabBarDiagnostics,
@@ -52,6 +55,22 @@ const BACKDROP_OPTIONS: readonly { value: LabBackdropId; label: string }[] = [
   { value: "grid", label: "Grid" },
   { value: "split", label: "Split" },
 ];
+
+const TINT_FORMATS: readonly { value: CssColorFormat; label: string }[] = [
+  { value: "hex", label: "Hex" },
+  { value: "rgb", label: "RGB" },
+  { value: "hsl", label: "HSL" },
+  { value: "hwb", label: "HWB" },
+  { value: "lab", label: "Lab" },
+  { value: "lch", label: "LCH" },
+  { value: "oklab", label: "OKLab" },
+  { value: "oklch", label: "OKLCH" },
+  { value: "display-p3", label: "Display P3" },
+];
+
+/** The formats DialKit's color picker writes itself. */
+const isPickerFormat = (f: CssColorFormat | null): f is "hex" | "oklch" | "display-p3" =>
+  f === "hex" || f === "oklch" || f === "display-p3";
 
 const TIER_LABEL: Record<ResolvedGlassTier, string> = {
   "html-in-canvas": "HTML in canvas",
@@ -129,6 +148,11 @@ export function MaterialLab() {
         },
         "adaptive contrast": true,
         tint: { type: "color" as const, default: "#0e121c" },
+        "tint format": {
+          type: "select" as const,
+          options: TINT_FORMATS.map(({ value, label }) => ({ value, label })),
+          default: "hex",
+        },
         frost: [1.4, 0, 12, 0.1] as [number, number, number, number],
         "body opacity": [0.18, 0, 0.75, 0.01] as [number, number, number, number],
       },
@@ -209,6 +233,8 @@ export function MaterialLab() {
     const qPaused = params.get("paused");
     const qParked = params.get("parked");
     const qFused = params.get("fused");
+    const qTint = params.get("tint");
+    const qTintFormat = params.get("tintFormat");
 
     if (
       qEngine === "auto" ||
@@ -237,7 +263,45 @@ export function MaterialLab() {
     if (qPaused === "1" || qPaused === "true") ctrl.setValue("Scene.pause plasma", true);
     if (qParked === "1" || qParked === "true") ctrl.setValue("Scene.park loupe", true);
     if (qFused === "1" || qFused === "true") ctrl.setValue("Scene.fuse orb", true);
+    const tint = qTint ? parseCssColor(qTint) : null;
+    if (qTint && tint) {
+      const written = cssColorFormat(qTint);
+      ctrl.setValue("Material.tint", isPickerFormat(written) ? qTint : formatCssColor(tint, "hex"));
+      if (written) ctrl.setValue("Material.tint format", written);
+    }
+    if (TINT_FORMATS.some((f) => f.value === qTintFormat)) {
+      ctrl.setValue("Material.tint format", qTintFormat as CssColorFormat);
+    }
   }, [ctrl]);
+
+  // The picker writes hex, OKLCH or Display P3; the format select covers every
+  // CSS syntax. Choosing one of the picker's formats in either place updates the other.
+  const tint = d.Material.tint;
+  const tintFormat = d.Material["tint format"] as CssColorFormat;
+  const pickerFormat = cssColorFormat(tint);
+  const prevPickerFormatRef = useRef(pickerFormat);
+  useEffect(() => {
+    if (prevPickerFormatRef.current === pickerFormat) return;
+    prevPickerFormatRef.current = pickerFormat;
+    if (pickerFormat && pickerFormat !== tintFormat) ctrl.setValue("Material.tint format", pickerFormat);
+  }, [pickerFormat, tintFormat, ctrl]);
+  const prevTintFormatRef = useRef(tintFormat);
+  useEffect(() => {
+    if (prevTintFormatRef.current === tintFormat) return;
+    prevTintFormatRef.current = tintFormat;
+    const parsed = parseCssColor(tint);
+    if (parsed && isPickerFormat(tintFormat) && pickerFormat !== tintFormat) {
+      prevPickerFormatRef.current = tintFormat;
+      ctrl.setValue("Material.tint", formatCssColor(parsed, tintFormat));
+    }
+  }, [tintFormat, tint, pickerFormat, ctrl]);
+  const tintCss = useMemo(() => {
+    if (pickerFormat === tintFormat) return tint;
+    const parsed = parseCssColor(tint);
+    return parsed ? formatCssColor(parsed, tintFormat) : tint;
+  }, [tint, tintFormat, pickerFormat]);
+  const pickerFormatRef = useRef(pickerFormat);
+  pickerFormatRef.current = pickerFormat;
 
   // Changing the variant resets the settings tied to it
   const prevVariantRef = useRef<GlassVariant>(variant);
@@ -245,9 +309,10 @@ export function MaterialLab() {
     if (prevVariantRef.current === variant) return;
     prevVariantRef.current = variant;
     const seed = GLASS_VARIANTS[variant];
+    const keep = pickerFormatRef.current;
     ctrl.setValues({
       Material: {
-        tint: rgbToHex(seed.tintColor),
+        tint: formatCssColor(seed.tintColor, isPickerFormat(keep) ? keep : "hex"),
         frost: seed.blur,
         "body opacity": seed.tintAlpha,
       },
@@ -298,7 +363,7 @@ export function MaterialLab() {
       ior: d.Optics["refractive index"],
       bezel: d.Optics.bezel,
       thickness: d.Optics.thickness,
-      tintColor: d.Material.tint,
+      tintColor: tintCss,
       bodyOpacity: d.Material["body opacity"],
       lightAngle: d["Light and shadow"]["light angle"],
       specular: d["Light and shadow"].specular,
@@ -307,14 +372,14 @@ export function MaterialLab() {
       pressCompression: d.Motion["press compression"],
       edgeRingLight: variant !== "tinted" && backdrop !== "feed" && backdrop !== "grid",
     }),
-    [d, variant, backdrop],
+    [d, tintCss, variant, backdrop],
   );
 
   const exportConfig: ExportableLabConfig = {
     variant,
     profile,
     adaptiveContrast: d.Material["adaptive contrast"],
-    tintColor: d.Material.tint,
+    tintColor: tintCss,
     frost: d.Material.frost,
     bodyOpacity: d.Material["body opacity"],
     refraction: d.Optics.refraction,

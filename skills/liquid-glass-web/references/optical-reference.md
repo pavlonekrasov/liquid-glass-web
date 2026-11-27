@@ -61,7 +61,7 @@ Pass via `optics={{ ... }}` on `<GlassStage>`, `<GlassSurface>`, `<GlassTabBar>`
 | `loupeBezel` | `number` | `bezel` | Lifted droplet bezel width |
 | `loupeThickness` | `number` | `thickness` | Lifted droplet plateau thickness |
 | `loupeStrength` | `number` | `refraction` | Lifted droplet Snell scale |
-| `tintColor` | `string \| RgbColor` | `"#0e121c"` | Beer–Lambert body absorption RGB/hex (overridden by `adaptiveContrast` when enabled) |
+| `tintColor` | `string \| RgbColor` | `"#0e121c"` | Beer–Lambert body absorption color. Any CSS color works: hex, `rgb()`, `hsl()`, `hwb()`, `lab()`, `lch()`, `oklab()`, `oklch()`, `color(display-p3 …)` and other `color()` spaces, named colors, and `var()` in the browser. Wide-gamut colors are gamut mapped to sRGB (CSS Color 4); the color's alpha multiplies `bodyOpacity`. Overridden by `adaptiveContrast` when enabled |
 | `bodyOpacity` | `number` | `0.18` | Beer–Lambert plateau absorption (`0..0.85`) |
 | `rimAlphaMin` | `number` | `0.02` | Minimum rim tint floor (`0..0.5`) |
 | `lightAngle` | `number` | `-125` | Key light screen azimuth in degrees |
