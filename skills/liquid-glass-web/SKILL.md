@@ -81,13 +81,27 @@ export function AppShell() {
 }
 ```
 
+## Where Glass Belongs
+
+Follow Apple's Human Interface Guidelines ([Materials](https://developer.apple.com/design/human-interface-guidelines/materials), [Adopting Liquid Glass](https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass)). Decide where glass goes before tuning how it looks:
+
+- **Glass is the control layer, not the content.** It belongs to navigation and controls that float above the page: tab bars, toolbars, floating buttons (`GlassOrb`, `GlassButton`), and panels or popovers built from `GlassSurface`. Put these in `<GlassStage.Chrome>`.
+- **Keep the content layer solid.** Page backgrounds, articles, feed and list items, table rows and content cards use the page's ordinary surfaces, not glass. A grid of glass cards is the most common misuse.
+- **Sliders and switches show glass only while in use.** `GlassSlider` and `GlassSwitch` already follow this: the thumb rests as a plain white pill and lifts into a refracting droplet only on press or drag (and never lifts under reduced motion). Still place them in `<GlassStage.Chrome>` like every other glass component; they register their own glass with the stage, and placing them inside the scrolling content is untested.
+- **Never stack glass on glass.** Don't put a glass surface on top of another glass surface. Group nearby controls in one `<GlassContainer>` so they share one fused shape, and put related actions in the same group.
+- **Use it sparingly.** Reserve glass for the few most important functional elements on a screen. If every element is glass, none of it reads as the control layer, and it distracts from the content. The stage also has a hard limit (see below): 8 base surfaces and 3 `GlassContainer` groups.
+- **Pick the variant for what is behind it.** `"regular"` almost everywhere, and for anything carrying a lot of text. `"clear"` only over visually rich media such as photos and video. When that media is bright, add a dark layer of about 35% opacity to the media itself, under the glass, so labels stay legible; the `"clear"` preset does not dim anything on its own.
+- **Be sparing with colour.** Keep controls and navigation mostly neutral so they stay legible; when a control needs colour, use a colour that has light, dark and increased-contrast versions.
+- **Let content scroll under bars with an edge effect.** Where content scrolls beneath a glass bar, add `<GlassScrollEdge>` so the content fades under it instead of colliding with its labels.
+- **Don't add your own backgrounds to glass chrome.** Extra fills, borders or shadows on a bar fight the material and the scroll edge effect. To change the body colour, its strength or the edge ring, use the `tintColor`, `bodyOpacity` and `edgeRingAlpha` keys of `optics` (see `references/optical-reference.md`).
+
 ## Choosing Material Variants & Semantic Props
 
 Prefer the semantic top-level props over raw optical constants. Reach for `optics={{ ... }}` only when custom art direction explicitly requires overriding IOR, bezel geometry, or lighting angles.
 
 | Prop | Values & Default | When to Choose |
 | --- | --- | --- |
-| `variant` | `"regular"` (default), `"clear"`, `"tinted"` | Use `"regular"` for floating navigation over mixed scrolling content; `"clear"` over rich dark media/video; `"tinted"` over dense daylight typography. |
+| `variant` | `"regular"` (default), `"clear"`, `"tinted"` | Use `"regular"` for floating navigation over mixed scrolling content; `"clear"` only over photos and video (dim bright media about 35% beneath it); `"tinted"` (more frost) over dense daylight typography. |
 | `shapeProfile` | `"circle"` (default), `"c2squircle"`, `"squircle"` | Keep `"circle"` by default (natively fold-free `minJ ≈ 0.36`); pick `"c2squircle"` for a tighter Apple shoulder (fold-clamped at `minJ = 0.25`). |
 | `refraction` | `0..1.3` (default `1.0`) | `1.0` matches physical Schott N-BK7 (`n_d = 1.5168`). Reduce toward `0.5` for calmer secondary surfaces. |
 | `dispersion` | `0..1` (default `0.62`) | Controls lifted-loupe spectral prism spread (`~1.12 px` at `0.62`); resting bars stay dispersion-free (`0`) for legibility. |
