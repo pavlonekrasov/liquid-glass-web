@@ -89,7 +89,7 @@ Follow Apple's Human Interface Guidelines ([Materials](https://developer.apple.c
 - **Keep the content layer solid.** Page backgrounds, articles, feed and list items, table rows and content cards use the page's ordinary surfaces, not glass. A grid of glass cards is the most common misuse.
 - **Sliders and switches show glass only while in use.** `GlassSlider` and `GlassSwitch` already follow this: the thumb rests as a plain white pill and lifts into a refracting droplet only on press or drag (and never lifts under reduced motion). Still place them in `<GlassStage.Chrome>` like every other glass component; they register their own glass with the stage, and placing them inside the scrolling content is untested.
 - **Never stack glass on glass.** Don't put a glass surface on top of another glass surface. Group nearby controls in one `<GlassContainer>` so they share one fused shape, and put related actions in the same group.
-- **Use it sparingly.** Reserve glass for the few most important functional elements on a screen. If every element is glass, none of it reads as the control layer, and it distracts from the content. The stage also has a hard limit (see below): 8 base surfaces and 3 `GlassContainer` groups.
+- **Use it sparingly.** Reserve glass for the few most important functional elements on a screen. If every element is glass, none of it reads as the control layer, and it distracts from the content. The stage also has a hard budget, and past it the fastest tier silently drops glass (see "Glass budget per stage" below).
 - **Pick the variant for what is behind it.** `"regular"` almost everywhere, and for anything carrying a lot of text. `"clear"` only over visually rich media such as photos and video. When that media is bright, add a dark layer of about 35% opacity to the media itself, under the glass, so labels stay legible; the `"clear"` preset does not dim anything on its own.
 - **Be sparing with colour.** Keep controls and navigation mostly neutral so they stay legible; when a control needs colour, use a colour that has light, dark and increased-contrast versions.
 - **Let content scroll under bars with an edge effect.** Where content scrolls beneath a glass bar, add `<GlassScrollEdge>` so the content fades under it instead of colliding with its labels.
@@ -118,7 +118,23 @@ To make sibling surfaces fuse and split like real liquid droplets:
 2. Keep the resting gap around `14 px` (cleanly detached because `polySmin(7, 7, 22) > 0`).
 3. Toggle `merged` on `<GlassOrb>` (pulls `-11 px` to a `3 px` bridge, crossing the exact kiss threshold `gap = mergeRadius / 2 = 11 px`) to form a real full-DPR `polySmin` liquid meniscus across **every** optical tier: Tier 0 renders it in full-stage WebGL2, while Tier 1–2 render the unified Fresnel rim and analytical Gaussian contact shadow in WebGL2 at full DPR with a synchronous inline DOM `<mask>` (plus live zero-bake translating Snell refraction during spring motion in Tier 1).
 4. Add `<GlassScrollEdge position="bottom" tintColor="var(--paper)" />` for an iOS progressive-blur scroll edge that fades automatically as content reaches the scroll boundary.
-5. Keep at most 3 distinct `<GlassContainer>` groups and 8 base glass surfaces per `<GlassStage>` (matching GPU uniform array bounds `GlassNode[8]` + `GlassLoupe[4]`).
+5. Stay within the glass budget below.
+
+## Glass Budget per Stage
+
+Tier 0 (`html-in-canvas`) draws every glass element of a `<GlassStage>` in one WebGL2 pass with fixed-size arrays. Past these limits it does not warn; the extra glass is simply not drawn there:
+
+| Budget | Limit | What counts |
+| --- | --- | --- |
+| Glass surfaces | 8 (`MAX_HIC_SURFACES`) | Each `GlassTabBar`, `GlassOrb`, `GlassButton`, `GlassSurface`, `GlassSwitch` and `GlassSlider` is one. |
+| Lifted lenses | 4 (`MAX_HIC_LOUPES`) | Each `GlassTabBar`, `GlassSwitch` and `GlassSlider` owns one (its moving pill or lifted thumb). A fifth such control loses its lens. |
+| Fusion groups | 3 | Each `GlassContainer` takes a group. A fourth container shares group 3 with the third, so their surfaces fuse into each other. |
+
+A tab bar, a search orb, two switches and a slider is 5 surfaces and 4 lenses: the whole budget for lenses. Split larger screens across views or stages rather than adding more glass.
+
+## Stage Layout
+
+`<GlassStage>` is a fixed, full-viewport stage by default (`fullscreen` defaults to `true`): its scene is the page's scroll container, and `<GlassStage.Chrome>` floats above it. Use `fullscreen={false}` only for an in-flow demo or preview box inside a normal page.
 
 ## Progressive Enhancement Tiers (`engine="auto"`)
 

@@ -33,6 +33,13 @@ To teach your coding agent the API, add the Agent Skill:
 npx skills add pavlonekrasov/liquid-glass-web
 ```
 
+The skill is updated with every release. To pull the latest, or to see whether yours is behind:
+
+```bash
+npx skills update liquid-glass-web
+npx skills check
+```
+
 ```tsx
 import {
   GlassStage,
@@ -144,6 +151,17 @@ pnpm verify:firefox
 ```
 
 Curious how it works under the hood? See [docs/architecture.md](docs/architecture.md).
+
+### Releasing
+
+The Agent Skill in `skills/liquid-glass-web` installs from this repo's main branch, so each release updates it too:
+
+1. Bump `version` in `packages/liquid-glass-web/package.json`.
+2. Run `pnpm skill:version` to give the skill the same version.
+3. Update the skill for anything the release adds, renames or removes, then run `pnpm test`. A contract test fails if the
+   skill names a component, variant, engine or optics key the library no longer has, misses a new optics key, quotes a
+   stale glass budget, or carries a different version.
+4. Commit, push and publish. People who installed the skill get it with `npx skills update`.
 
 ---
 
